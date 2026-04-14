@@ -132,11 +132,13 @@
     <None Update="plugins\BugtrackerDiagnosticsUI.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Condition="Exists('lib\BugTrackerUploader.dll')" Update="lib\BugTrackerUploader.dll">
+    <None Condition="Exists('lib\BugTrackerUploader.dll')" Include="lib\BugTrackerUploader.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>BugTrackerUploader.dll</TargetPath>
     </None>
-    <None Condition="Exists('lib\Newtonsoft.Json.dll')" Update="lib\Newtonsoft.Json.dll">
+    <None Condition="Exists('lib\Newtonsoft.Json.dll')" Include="lib\Newtonsoft.Json.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>Newtonsoft.Json.dll</TargetPath>
     </None>
     <None Update="resources\shutter.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
