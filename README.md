@@ -22,10 +22,10 @@ Deshalb wurde beschlossen, eine neue Version des Bugtrackers zu entwickeln und n
 - Konfigurationsbezug mit Priorisierung: Webserver → SMB-Share → Lokale Kopie
 - Variablensubstitution in Konfigurationswerten (`%hostname%`, `%date%`, `%abbrev%`, …)
 - RDP-Sitzungserkennung (`%clientname%` vs. `%hostname%`)
-- Plugin-Architektur ([GUI als eigenständiges Plugin]())
-- Bedienung via [GUI]() und vollständiger [CLI]()
-- Windows Toast-Benachrichtigungen (siehe [Bugtracker Diagnostics UI]())
-- MSI-Installer auf Basis von WiX Toolset v5 (siehe [BugtrackerSetup]())
+- Plugin-Architektur ([GUI als eigenständiges Plugin](https://github.com/Radiologie-IT/BugtrackerDiagnosticsUI))
+- Bedienung via [GUI](https://github.com/Radiologie-IT/BugtrackerDiagnosticsUI) und vollständiger [CLI](CONSOLE_USAGE.md)
+- Windows Toast-Benachrichtigungen (siehe [Bugtracker Diagnostics UI](https://github.com/Radiologie-IT/BugtrackerDiagnosticsUI))
+- MSI-Installer auf Basis von WiX Toolset v5 (siehe [BugtrackerSetup](https://github.com/Radiologie-IT/BugtrackerSetup))
 
 ## Versionierung
 
@@ -35,7 +35,7 @@ Usprüngliche Version von BugtrackerV2. Deckt Grundfunktionalität, grafische Ob
 - XML-Konfigurationsdatei (f&uuml;r aktuelle Optionen siehe [CONFIGURATION.md](CONFIGURATION.md))
 - Log-Sammlung (`fetchLogfile`) und Screenshot-Erfassung (`captureMonitors`)
 - CLI-Steuerung (siehe [CONSOLE_USAGE.md](CONSOLE_USAGE.md))
-- GUI-Plugin (Diagnostics UI) mit dynamischer Programmsektion (siehe [Bugtracker Diagnostics UI]())
+- GUI-Plugin (Diagnostics UI) mit dynamischer Programmsektion (siehe [Bugtracker Diagnostics UI](https://github.com/Radiologie-IT/BugtrackerDiagnosticsUI))
 - RDP-Sitzungsunterstützung
 - Variablensubstitutionssystem
 
@@ -45,9 +45,9 @@ Erweiterungen, die über den ursprünglichen Plan hinausgehen:
 - Konfigurationsbezug vom Webserver (HTTP)
 - Logrotation und konfigurierbare Zeilenbegrenzung
 - AGE/NEW/ALL Log-Suchspezifizierer
-- WiX-basierter MSI-Installer (ersetzt alten Click-Once-Installer) (siehe [BugtrackerSetup]())
-- Zusätzliche Aufnahmetypen (siehe [Bugtracker Diagnostics UI]()): Snipping-Tool (Multi-Monitor), Schrittweise-Aufnahme, Videoaufnahme (H.264) 
-- Toast-Benachrichtigungen (siehe [Bugtracker Diagnostics UI]())
+- WiX-basierter MSI-Installer (ersetzt alten Click-Once-Installer) (siehe [BugtrackerSetup](https://github.com/Radiologie-IT/BugtrackerSetup))
+- Zusätzliche Aufnahmetypen (siehe [Bugtracker Diagnostics UI](https://github.com/Radiologie-IT/BugtrackerDiagnosticsUI)): Snipping-Tool (Multi-Monitor), Schrittweise-Aufnahme, Videoaufnahme (H.264) 
+- Toast-Benachrichtigungen (siehe [Bugtracker Diagnostics UI](https://github.com/Radiologie-IT/BugtrackerDiagnosticsUI))
 
 ### Version 2.2
 Remote-Ausführung: Bugtracks sollen ohne direkten Zugriff auf den Ziel-PCs durchgeführt werden können. 
