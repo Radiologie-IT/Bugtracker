@@ -1,50 +1,78 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <configuration>
-		<!--
-	PROBLEM DESCRIPTION: Descriptions for problem categories.
-	-->
-	
-	<problem-categories>
-		<problem-category name="Allgemeiner Fehler." ticket= "af">
-			<description text="Folgender Allgemeiner Fehler:"/>
-			<app-selection>All</app-selection>
-		</problem-category>
-		<problem-category name="Bilder Bennenung" ticket="bbf">
-			<description text="Die Bilder Bennenung ist falsch da:"/>
-			<app-selection>Screen</app-selection>
-		</problem-category>
-		<problem-category name="IP8-Hanging" ticket="ip8-hanging">
-			<description text="Im Hanging Protokoll stimm folgendens nicht:"/>
-			<app-selection>IP8,Screen</app-selection>
-		</problem-category>
-		<problem-category name="XR" ticket="xr5-slow">
-			<description text="Ist langsam oder reagiert nicht:"/>
-			<app-selection>XR5</app-selection>
-		</problem-category>
-		<problem-category name="Word" ticket="Word">
-			<description text="Macht folgendes Problem:"/>
-		</problem-category>
-		<problem-category name="TH"  ticket="th-Slow">
-			<description text="Ist langsam oder reagiert nicht:"/>
-		</problem-category>
-		<problem-category name="Syngo Via" ticket="SyngoVia">
-			<description text="Folgende Bilder fehlen:"/>
-		</problem-category>
-	</problem-categories>
-	
 	<!--
 	TARGET: Targets where bugtracks will be sent
-	default value -> \\10.74.10.100\bugTracker
+	IMPORTANT: MUST be configured before problem categories for category specific targets to work
 	-->
-  
-  <targets>
-		<target type="folder"  name="bugtracker network folder" path='\\10.74.10.100\bugTracker' foldername="Bugtracker-%computername%-%date%-%time%" default="true" > 
+
+	<targets>
+		<target type="webupload" name="Web Backend Upload" serverurl="http://your-bugtracker-server" default="true">
 		</target>
-	
-		<target type="folder" name="bugtracker-test-folder-network" path='\\10.74.10.100\bugTracker\bugtrackerv2_test_target' default='false' foldername="Bugtracker-%computername%-%date%-%time%" >
+
+		<target type="folder" name="Network Share Folder" path='\\your-server\bugtracker-share\' foldername="Bugtracker-%idString%-%date%-%time%" default="false" obligatory="false">
 		</target>
-  </targets>
-  
+
+		<target type="mail" name="Support Mail" default="false"
+				recipient="support@your-domain.com"
+				sender="bugtracker@your-domain.com" smtpserver="smtp.your-domain.com" smtpport="587" smtpssl="True" smtpuser="" smtppass=""
+				subject="Bugtracker: %clientname%.%domainname% (%date%-%time%)" htmltemplate="path_to_template.html" attachzip="true">
+		</target>
+
+		<target type="powershell" name="Custom PowerShell Script" default="false" obligatory="false"
+				path="path_to_script.ps1"
+				logoutput="true">
+		</target>
+	</targets>
+
+
+	<!--
+	PROBLEM DESCRIPTION: Descriptions for problem categories.
+	-->
+
+	<problem-categories>
+		<problem-category name="General Error" ticket="general-error">
+			<description text="The following error occurred:" />
+			<app-selection>All</app-selection>
+			<target name="Web Backend Upload" />
+		</problem-category>
+
+		<problem-category name="Application Crash" ticket="app-crash">
+			<description text="The application crashed with the following details:" />
+			<app-selection>Screen,PrimaryApp</app-selection>
+			<target name="Network Share Folder" />
+		</problem-category>
+
+		<problem-category name="Missing Data" ticket="missing-data">
+			<description text="The following data is missing or was not processed:" />
+			<app-selection>Screen,PrimaryApp,SecondaryApp</app-selection>
+			<target name="Network Share Folder" />
+		</problem-category>
+
+		<problem-category name="Performance Issue" ticket="perf-issue">
+			<description text="The application is slow or unresponsive:" />
+			<app-selection>PrimaryApp,ServiceApp,Screen</app-selection>
+			<target name="Network Share Folder" />
+		</problem-category>
+
+		<problem-category name="Plugin Error" ticket="plugin-error">
+			<description text="The following plugin error occurred:" />
+			<app-selection>PrimaryApp,PluginApp,Screen</app-selection>
+			<target name="Network Share Folder" />
+		</problem-category>
+
+		<problem-category name="Network Connectivity Issue" ticket="network-issue">
+			<description text="Network connectivity problem detected:" />
+			<app-selection>All</app-selection>
+			<target name="Web Backend Upload" />
+		</problem-category>
+
+		<problem-category name="Other" ticket="other">
+			<description text="Other issue description:" />
+			<app-selection>All</app-selection>
+			<target name="Network Share Folder" />
+		</problem-category>
+	</problem-categories>
+
 	<!--
 	APPLICATION SECTION
 	-->
@@ -54,141 +82,115 @@
 			<query name ="SQLString" queryString="select 1"/>
 		</application>
 		-->
-	
-    <!--
-		Bugtracker
-		-->
-    <application name="Bugtracker" executable ="C:\Bugtracker\" standard="true" show="always">
-		<log location="client"
-			 path="C:\Bugtracker\"
-			 filename="*.log"
-			 find="NEW"
-			 />
-		<!--pre-fetch path="C:\Users\Dominik Beyerle\Desktop\create_folder.ps1"/>
-		<post-fetch path="C:\Users\Dominik Beyerle\Desktop\create_folder.ps1"/ -->
-    </application>
-	
 
-    <!--
-		ImagePro 7
-		-->
-		<application name="IP7" executable ="c:\Program Files (x86)\DATA\xr pacs\imagepro\" standard="true" show="installed">
+		<!--
+			Bugtracker
+			-->
+		<application name="Bugtracker" executable="C:\Bugtracker\" standard="true" show="always">
 			<log location="client"
-				 path="c:\Program Files (x86)\DATA\xr pacs\imagepro\"
-				 filename="xrpimagepro*.log"
-				 find="NEW"/>
-		
+				path="C:\Bugtracker\"
+				filename="*.log"
+				find="NEW" />
+			<!--
+			<pre-fetch path="path_to_file"/>
+			<post-fetch path="path_to_file">
+			/ -->
+		</application>
+
+
+		<!--
+		Primary Application - logs from local client paths only
+		-->
+		<application name="PrimaryApp" executable="C:\Program Files\YourCompany\PrimaryApp\"
+			standard="true" show="installed">
+			<log location="client"
+				path="C:\Program Files\YourCompany\PrimaryApp\"
+				filename="primaryapp_*.log"
+				find="NEW" />
+			<log location="client"
+				path="%ProgramData%\YourCompany\PrimaryApp\Logs\"
+				filename="*.log"
+				find="NEW" />
+		</application>
+
+		<!--
+		Secondary Application - logs from both client and a network server share
+		-->
+		<application name="SecondaryApp" executable="C:\Program Files\YourCompany\SecondaryApp\"
+			standard="true" show="installed">
+			<log location="client"
+				path="%ProgramData%\YourCompany\SecondaryApp\Logs\"
+				filename="secondaryapp_*.log"
+				find="NEW" />
+			<log location="server"
+				path="\\your-server\logs\secondaryapp\"
+				filename="*%clientname%*"
+				find="NEW" />
+		</application>
+
+		<!--
+		Service Application - server-side logs filtered by client name and username
+		-->
+		<application name="ServiceApp" executable="C:\Program Files\YourCompany\ServiceApp\"
+			standard="true" show="installed">
+			<log location="server"
+				path="\\your-server\logs\service\"
+				filename="service.*%clientname%*.log"
+				find="NEW" />
+			<log location="server"
+				path="\\your-server\logs\service\"
+				filename="service*%clientname%*%username%*.log"
+				find="NEW" />
+			<log location="client"
+				path="%ProgramData%\YourCompany\ServiceApp\"
+				filename="service_*.log"
+				find="NEW" />
+		</application>
+
+		<!--
+		Plugin Application - logs collected via terminal server client path and local AppData
+		-->
+		<application name="PluginApp" executable="C:\Program Files\YourCompany\PluginApp"
+			standard="true" show="always">
 			<log location="host"
-				 path="\\tsclient\c\Program Files (x86)\DATA\xr pacs\imagepro\"
-				 filename="xrpimagepro*.log"
-				 find="NEW"/>
-		</application>
-		<!--
-		ImagePro 8
-		-->
-		<application name="IP8" executable ="C:\Program Files\DATA\xr pacs\ImagePro 8\" standard="true" show="installed">
-			<log location="client"
-				 path="C:\ProgramData\DATA\ImagePro8Logs"
-				 filename="ImagePro8_*.log"
-				 find="NEW"/>
-			<log location="client"
-				 path="\\tsclient\c\ProgramData\DATA\ImagePro8Logs"
-				 filename="ImagePro8_*.log"
-				 find="NEW"/>
-		</application>
-
-		<!--
-		XR5 Manage
-		-->
-		<application name="XR5" executable="C:\Program Files (x86)\DATA\XR5\" standard="true" show="installed">
-			<log location="server"
-				 path="\\server\xr50\log\"
-				 filename="xr5.*%clientname%*.log"
-				 find="NEW"/>
-			<log location="client"
-				 path="%ProgramFiles%/data/"
-				 filename="xrwordaddin.*.log"
-				 find="NEW"/>
-			
-		</application>
-
-		<!--
-		timer Manage
-		-->
-		<application name="XR5 Timer" executable="C:\Program Files (x86)\DATA\XRTimer5" standard="true" show="installed">
-			<log location="server"
-				 path="\\server\xr50\log\"
-				 filename="xr ris timer*%clientname%*.log"
-				 find="NEW"/>
-			<log location="client"
-				 path="%ProgramFiles%/data/"
-				 filename="xrristimer.*.log"
-				 find="NEW"/>
-		</application>
-
-		<!--
-		XR Wordaddin
-		-->
-		<application name="XR-Wordplugin" executable ="c:/program" standard="true" show="installed">
-			<log location="server"
-				 path="\\server\xr50\log\"
-				 filename="xrwordaddin.*%clientname%*.log"
-				 find="NEW"/>
-				 
-			<log location="client"
-				 path="%ProgramFiles%/data/"
-				 filename="xrwordaddin.*.log"
-				 find="NEW"/>
-		</application>
-
-		<!--
-		XR5 Importer
-		-->
-		<application name="Importer" executable ="c:/program" type="log" standard="false" show="always">
-			<log location="server"
-				 path="\\server\xr50\log\xrpimp"
-				 filename="xrpimp_*%clientname%*.log"
-				 find="NEW"/>
-		</application>
-
-
-		<!--
-		changeviewer Manage
-		-->
-		<application name="Changer Viewer" executable="C:\viewerChanger" standard="false" show="installed">
-			<log location="client"
-				 path="c:\viewerChanger\"
-				 filename="ViewChanger.log"
-				 find="NEW"/>
+				path="\\tsclient\c\Program Files\YourCompany\PluginApp\"
+				filename="*.log"
+				find="NEW" />
 			<log location="host"
-				 path="\\tsclient\c\viewerChanger\"
-				 filename="ViewChanger.log"
-				 find="NEW"/>
+				path="\\tsclient\C\Users\%username%\AppData\Local\YourCompany\PluginApp\logs\"
+				filename="*.log"
+				find="NEW" />
+			<log location="client"
+				path="%LOCALAPPDATA%\YourCompany\PluginApp\logs\"
+				filename="*.log"
+				find="NEW" />
 		</application>
 
 		<!--
-		Speechmagic
+		Remote Tool - executable resides on a network share, server-only logs
 		-->
-		<application name="Speechmagic" executable ="c:/program" type="log" standard="true" show="installed">
-			<log location="host"
-				 path="\\tsclient\c\SpeechMagic\InterActive\Logging\"
-				 filename ="*.log"
-				 find="NEW"/> 
-			<log location="client"
-				 path="%ProgramData%\SpeechMagic\InterActive\Logging\"
-				 filename ="*.log"
-				 find="NEW"/> 
-			<log location="host" 
-				 path="\\tsclient\C\Users\%username%\AppData\Local\Philips Device Control Center\log\" 
-				 filename ="*.log"
-				 find="NEW"/> 
-			<log location="client" 
-				 path="%LOCALAPPDATA%\Philips Device Control Center\log\" 
-				 filename ="*.log"
-				 find="NEW" 
-				 /> 
+		<application name="RemoteTool"
+			executable="\\your-server\tools\remotetool\remotetool.exe" type="log"
+			standard="false" show="always">
+			<log location="server"
+				path="\\your-server\logs\remotetool\"
+				filename="remotetool_*%clientname%*.log"
+				find="NEW" />
 		</application>
-		
+
+		<!--
+		Diagnostic Service - collects all logs and runs a post-fetch command for additional info
+		-->
+		<application name="DiagService" executable="C:\Program Files\YourCompany\DiagService"
+			standard="false" show="installed">
+			<log location="client"
+				path="C:\Program Files\YourCompany\DiagService"
+				filename="diagservice_*.log"
+				find="ALL" />
+			<post-fetch path="tree C:\DiagData /f >> C:\Bugtracker\blackhole\diagtree.log">
+			</post-fetch>
+		</application>
+
 	</applications>
-	
+
 </configuration>

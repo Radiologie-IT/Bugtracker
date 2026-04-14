@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
 using Microsoft.Win32;
+using Bugtracker.Logging;
 
 namespace Bugtracker.Variables
 {
@@ -22,17 +23,19 @@ namespace Bugtracker.Variables
         public VariableManager(params Object[] toLoadFrom)
         {
             this.toLoadFrom = toLoadFrom;
-            FullRefresh();
+            //FullRefresh();
         }
 
         private void SetCustomKeyValues()
         {
+
         }
 
         private void LoadInAllEnvironmentVariables()
         {
             foreach (DictionaryEntry dictEntry in Environment.GetEnvironmentVariables())
             {
+                //Logger.Log("Getting Environment Variable" + dictEntry.Key + ":" + dictEntry.Value, LoggingSeverity.Info);
                 VariableDictionary[(string)dictEntry.Key] = (dictEntry.Value, false);
             }
         }
@@ -51,8 +54,6 @@ namespace Bugtracker.Variables
                             VariableDictionary[ka.Name] = (propertyInfo.GetValue(objectToLoadFrom) ?? "not set.", true);
                         else
                             VariableDictionary[ka.Name] = (propertyInfo.GetValue(objectToLoadFrom) ?? "not set.", false);
-
-                        System.Diagnostics.Debug.WriteLine("key = " + ka.Name + "value: " + propertyInfo.GetValue(objectToLoadFrom));
                     }
                 }
             }
@@ -72,8 +73,6 @@ namespace Bugtracker.Variables
                             VariableDictionary[ka.Name] = (propertyInfo.GetValue(obj) ?? "not set.", true);
                         else
                             VariableDictionary[ka.Name] = (propertyInfo.GetValue(obj) ?? "not set.", false);
-
-                        System.Diagnostics.Debug.WriteLine("key = " + ka.Name + "value: " + propertyInfo.GetValue(obj));
                     }
                 }
             }
@@ -100,8 +99,6 @@ namespace Bugtracker.Variables
                             }
                                 
                         }
-
-                        System.Diagnostics.Debug.WriteLine("set value for key = " + ka.Name + " new value: " + propertyInfo.GetValue(obj));
                     }
                 }
             }
@@ -113,7 +110,7 @@ namespace Bugtracker.Variables
         {
             foreach (var keyValuePair in VariableDictionary)
             {
-                System.Diagnostics.Debug.WriteLine(".......Current Key Values:....... " + System.Environment.NewLine + "Key: " + keyValuePair.Key + ", Value: " + keyValuePair.Value.value);
+                Logging.Logger.Log("Variable - Key: '" + keyValuePair.Key + "', Value: '" + keyValuePair.Value.value + "', IsDynamic: " + keyValuePair.Value.isDynamic, Logging.LoggingSeverity.Debug);
             }
         }
 
@@ -133,18 +130,12 @@ namespace Bugtracker.Variables
                                 keyValuePairY.Value.value);
 
                             keysAndNewValues.Add((keyValuePairX.Key, newString));
-
-
-                            //((string)VariableDictionary[keyValuePairX.Key]).Replace("%" + keyValuePairY.Key + "%", keyValuePairY.Value);
-                            System.Diagnostics.Debug.WriteLine("value to insert: " + (string)keyValuePairY.Value.value);
-                            //System.Diagnostics.Debug.WriteLine("Replaced Key with value, new string: " + (string) keyValuePairX.Value);
                         }
                     }
                 }
 
                 foreach (var (Key, NewValue) in keysAndNewValues)
                 {
-                    System.Diagnostics.Debug.WriteLine("Try to change Dict var: key: " + Key + "new value" + NewValue);
                     VariableDictionary[Key] = (NewValue, false);
                 }
             }
@@ -158,7 +149,6 @@ namespace Bugtracker.Variables
                 {
                     if (keyValuePair.Value.ToString().Contains("%" + keyValuePairY.Key + "%"))
                     {
-                        System.Diagnostics.Debug.WriteLine("Found Value with key inside: " + (string)keyValuePair.Value.value);
                         return true;
                     }
                 }
@@ -186,14 +176,21 @@ namespace Bugtracker.Variables
                             }
                         }
 
-                        newValue = newValue.Replace("%" + key + "%", VariableDictionary[key].value);
-                        System.Diagnostics.Debug.WriteLine("Replaced " + "%" + key + "%" + ", New Value: " + newValue);
-                        Logging.Logger.Log("Replaced " + "%" + key + "%" + ", New Value: " + newValue, Logging.LoggingSeverity.Info);
+                        // Get the replacement value, default to empty string if null
+                        string replacementValue = VariableDictionary[key].value?.ToString() ?? "";
+
+                        // Log if we had to use empty string as fallback for null value
+                        if (VariableDictionary[key].value == null)
+                        {
+                            Logging.Logger.Log("Variable %" + key + "% has null value, replacing with empty string", Logging.LoggingSeverity.Debug);
+                        }
+
+                        string oldValue = newValue;
+                        newValue = newValue.Replace("%" + key + "%", replacementValue);
+                        Logging.Logger.Log("Replaced %" + key + "% in string: '" + oldValue + "' -> '" + newValue + "'", Logging.LoggingSeverity.Debug);
                     }
-                        
                 }
             }
-
             return newValue;
         }
 

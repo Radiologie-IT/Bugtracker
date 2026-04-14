@@ -32,23 +32,26 @@ namespace Bugtracker.Utils
     public class Server
     {
         public static event EventHandler CheckedServerStatus;
+        
         /// <summary>
-        /// 
+        /// Returns the current server status
         /// </summary>
         public ServerStatus ServerStatus { get; protected set; }
+        
         /// <summary>
-        /// 
+        /// Returns the current server path as string
         /// </summary>
         public string ServerPath { get; set; }
+        
         /// <summary>
-        /// 
+        /// Check interval in seconds
         /// </summary>
         public int CheckInterval { get; set; }
         private static System.Timers.Timer _aTimer;
-        private readonly Ping pinger;
+        //private readonly Ping pinger;
 
         /// <summary>
-        /// 
+        /// The constructor of the server class
         /// </summary>
         /// <param name="serverPath"></param>
         public Server(string serverPath)
@@ -60,6 +63,9 @@ namespace Bugtracker.Utils
 
         }
 
+        /// <summary>
+        /// Set the timer for the server status check
+        /// </summary>
         private void SetTimer()
         {
             _aTimer = new System.Timers.Timer(5000);
@@ -68,6 +74,12 @@ namespace Bugtracker.Utils
             _aTimer.Enabled = true;
         }
 
+        /// <summary>
+        /// Check the server status. Currently just returns true -> Available
+        /// My mehtod returns a catastophic exception
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnTimedEvent(object sender, ElapsedEventArgs e)
         {
             /*try

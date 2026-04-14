@@ -2,6 +2,9 @@
 
 namespace Bugtracker.Attributes
 {
+    /// <summary>
+    /// Arguments Attribute. Used to describe arguments for methods and classes as commands.
+    /// </summary>
     internal class ArgumentsAttribute : Attribute
     {
         public ArgumentsAttribute(string[] reqArguments)

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
 using Bugtracker.Globals_and_Information;
@@ -8,13 +10,14 @@ using Bugtracker.InternalApplication;
 using Bugtracker.Logging;
 using Bugtracker.Problem_Descriptors;
 using Bugtracker.Targeting;
+using Bugtracker.Utils;
 using Bugtracker.Variables;
 using static Bugtracker.Logging.Log;
 
 namespace Bugtracker.Configuration
 {
     /// <summary>
-    /// This class is only here to handle all the XML-Magic
+    /// This class is only here to handle all the XML-Magic.... Sadly XML :(
     /// </summary>
     public class ConfigurationManager
     {
@@ -29,6 +32,11 @@ namespace Bugtracker.Configuration
             rc = runningConfiguration;
         }
 
+        /// <summary>
+        /// Returns the main server address specified in the startup configuration
+        /// </summary>
+        /// <param name="customConfigPath"></param>
+        /// <returns></returns>
         public string GetMainServerAddress(
             string customConfigPath = null)
         {
@@ -55,6 +63,13 @@ namespace Bugtracker.Configuration
             return serverAddress;
         }
 
+        /// <summary>
+        /// Function returns the value used for checking if this is the first start of the application.
+        /// </summary>
+        /// <param name="attribute"></param>
+        /// <param name="customConfigPath"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public static dynamic GetStartupValue(string attribute, string customConfigPath = null)
         {
             if (customConfigPath == null)
@@ -85,6 +100,11 @@ namespace Bugtracker.Configuration
             throw new Exception("Didn't find attribute in startup configuration.");
         }
 
+        /// <summary>
+        /// Function overwrite every attribute in the startup configuration with the running configurations values.
+        /// </summary>
+        /// <param name="customConfigPath"></param>
+        /// <param name="settings"></param>
         internal static void OverwriteStartupConfig(string customConfigPath = null, params (string attribute, string value)[] settings)
         {
             if (customConfigPath == null)
@@ -160,11 +180,40 @@ namespace Bugtracker.Configuration
                             logToAppend.Path = vm.ReplaceKeywords(reader.GetAttribute("path"));
                             logToAppend.Filename = vm.ReplaceKeywords(reader.GetAttribute("filename"));
 
-
                             if (Enum.TryParse<LogFindSpecifier>(vm.ReplaceKeywords(reader.GetAttribute("find")), out LogFindSpecifier findSpec))
                                 logToAppend.Find = findSpec;
 
+                            if (logToAppend.Find == LogFindSpecifier.AGE)
+                            {
+                                string minAgeAttr = reader.GetAttribute("minage");
+                                if (!string.IsNullOrEmpty(minAgeAttr) && int.TryParse(minAgeAttr, out int minAge))
+                                {
+                                    logToAppend.MinAge = minAge;
+                                }
+                                else
+                                {
+                                    logToAppend.MinAge = 0;
+                                }
+
+                                string maxAgeAttr = reader.GetAttribute("maxage");
+                                if (!string.IsNullOrEmpty(maxAgeAttr) && int.TryParse(maxAgeAttr, out int maxAge))
+                                {
+                                    logToAppend.MaxAge = maxAge;
+                                }
+                                else
+                                {
+                                    logToAppend.MaxAge = 60;
+                                }
+                            }
+
                             logToAppend.Lines = reader.GetAttribute("lines");
+
+                            string lastLinesAttr = reader.GetAttribute("lastlines");
+                            if (!string.IsNullOrEmpty(lastLinesAttr) && int.TryParse(lastLinesAttr, out int lastLines))
+                            {
+                                logToAppend.LineCount = lastLines;
+                            }
+                            
 
                             if (currentApplication != null)
                                 currentApplication.LogFiles.Add(logToAppend);
@@ -181,6 +230,124 @@ namespace Bugtracker.Configuration
                             if (currentApplication != null)
                                 currentApplication.PostFetchExecutionPath = vm.ReplaceKeywords(reader.GetAttribute("path"));
                         }
+
+                        if (reader.Name.Equals("powershell"))
+                        {
+                            try
+                            {
+                                PowershellUtils.PowershellExecution psex = new PowershellUtils.PowershellExecution(vm.ReplaceKeywords(reader.GetAttribute("path")));
+
+                                // Load optional downloadLink and saveAs attributes
+                                string downloadLink = reader.GetAttribute("downloadLink");
+                                if (!string.IsNullOrWhiteSpace(downloadLink))
+                                {
+                                    psex.DownloadLink = vm.ReplaceKeywords(downloadLink);
+                                }
+
+                                string saveAs = reader.GetAttribute("saveAs");
+                                if (!string.IsNullOrWhiteSpace(saveAs))
+                                {
+                                    psex.SaveAs = vm.ReplaceKeywords(saveAs);
+                                }
+
+                                //multiple try catch, as powershell target has default values for all config elements
+                                //multiple try catch, as powershell target has default values for all config elements
+                                try
+                                {
+                                    string attr_passvariables = reader.GetAttribute("passvariables");
+                                    psex.PassVariables = bool.Parse(vm.ReplaceKeywords(attr_passvariables));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load passvariables attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                try
+                                {
+                                    string attr_passfolders = reader.GetAttribute("passfolders");
+                                    psex.PassFolders = bool.Parse(vm.ReplaceKeywords(attr_passfolders));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load passfolders attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                try
+                                {
+                                    string attr_passproblemcat = reader.GetAttribute("passproblemcat");
+                                    psex.PassProblemCategory = bool.Parse(vm.ReplaceKeywords(attr_passproblemcat));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load passproblemcat attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                try
+                                {
+                                    string attr_logdefault = reader.GetAttribute("logdefault");
+                                    psex.LogDefault = bool.Parse(vm.ReplaceKeywords(attr_logdefault));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load logdefault attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                try
+                                {
+                                    string attr_logerrors = reader.GetAttribute("logerrors");
+                                    psex.LogErrors = bool.Parse(vm.ReplaceKeywords(attr_logerrors));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load logerrors attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                try
+                                {
+                                    string attr_logwarnings = reader.GetAttribute("logwarnings");
+                                    psex.LogWarnings = bool.Parse(vm.ReplaceKeywords(attr_logwarnings));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load logwarnings attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                try
+                                {
+                                    string attr_loginformations = reader.GetAttribute("loginformations");
+                                    psex.LogInformations = bool.Parse(vm.ReplaceKeywords(attr_loginformations));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load loginformations attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                try
+                                {
+                                    string attr_logprogresss = reader.GetAttribute("logprogress");
+                                    psex.LogProgress = bool.Parse(vm.ReplaceKeywords(attr_logprogresss));
+                                }
+                                catch (Exception e)
+                                {
+                                    Logger.Log("couldn't load logprogress attribute, using default", LoggingSeverity.Info);
+                                }
+
+                                if (reader.GetAttribute("execution").ToString().Equals("pre-fetch"))
+                                {
+                                    currentApplication.PowershellPre.Add(psex);
+                                }
+                                else if (reader.GetAttribute("execution").ToString().Equals("post-fetch"))
+                                {
+                                    currentApplication.PowershellPost.Add(psex);
+                                }
+
+                            }
+                            catch { 
+                                Logger.Log("Missing path attribute for powershell capture. Ignoring the capture.", LoggingSeverity.Warning); 
+                            }
+
+                           
+                        }
                     }
                 }
             }
@@ -188,6 +355,11 @@ namespace Bugtracker.Configuration
             return applications;
         }
 
+        /// <summary>
+        /// Gets the specified problem categories from the startup configuration.
+        /// </summary>
+        /// <param name="customConfigPath"></param>
+        /// <returns></returns>
         public List<ProblemCategory> GetSpecifiedProblemCategories(
             string customConfigPath = null)
         {
@@ -229,7 +401,7 @@ namespace Bugtracker.Configuration
                         if(reader.Name.Equals("app-selection"))
                         {
                             string selection = reader.ReadElementContentAsString();
-                            System.Diagnostics.Debug.WriteLine("selection text: " + selection);
+                            Logger.Log("selection text: " + selection, LoggingSeverity.Info);
                             string[] splitSelect = selection.Split(',');
 
                             string configurationPath = Globals.GetFittingConfigFilesPath();
@@ -238,35 +410,40 @@ namespace Bugtracker.Configuration
                             {
                                 foreach (string s in splitSelect)
                                 {
-                                    Regex.Replace(s, @"\s+", "");
+                                    // Trim whitespace from application name
+                                    string appName = s.Trim();
 
-                                    if (s.Equals("All"))
+                                    if (appName.Equals("All"))
                                         currentProblemCategory.SelectAllApplications = true;
 
-                                    if (s.Equals("Screen"))
+                                    if (appName.Equals("Screen"))
                                         currentProblemCategory.SelectScreenshot = true;
 
-                                    if (!s.Equals("All") && !s.Equals("Screen") && !s.Equals(""))
+                                    if (!appName.Equals("All") && !appName.Equals("Screen") && !appName.Equals(""))
                                     {
-
-
-                                        if (Directory.Exists(GetStartupValue(Globals_and_Information.Globals.LOCAL_STARTUP_CONFIG_FILE_PATH)))
-                                            configurationPath = GetStartupValue(Globals_and_Information.Globals.LOCAL_STARTUP_CONFIG_FILE_PATH);
-
-                                        foreach (string path in Directory.GetFiles(configurationPath, "*.xml"))
+                                        // Use already-determined configurationPath (from line 389)
+                                        if (!string.IsNullOrEmpty(configurationPath) && Directory.Exists(configurationPath))
                                         {
-                                            foreach (Application a in this.GetSpecifiedApplications(path))
+                                            foreach (string path in Directory.GetFiles(configurationPath, "*.xml"))
                                             {
-                                                if (a.Name == s)
+                                                foreach (Application a in this.GetSpecifiedApplications(path))
                                                 {
-                                                    currentProblemCategory.SelectedApplications.Add(a);
+                                                    if (a.Name == appName)
+                                                    {
+                                                        currentProblemCategory.SelectedApplications.Add(a);
+                                                    }
                                                 }
                                             }
+                                        }
+                                        else
+                                        {
+                                            Logger.Log($"Configuration path is invalid or doesn't exist: {configurationPath}", LoggingSeverity.Warning);
                                         }
                                     }
                                 }
 
-                                Logger.Log("Content of " + currentProblemCategory.Name + " : " + currentProblemCategory.SelectedApplications.ToString(), LoggingSeverity.Info);
+                                string appNames = string.Join(", ", currentProblemCategory.SelectedApplications.Select(a => a.Name));
+                                Logger.Log("Content of " + currentProblemCategory.Name + " : " + appNames, LoggingSeverity.Info);
                                 Logger.Log("Screenshot selection: " + currentProblemCategory.SelectScreenshot, LoggingSeverity.Info);
                                 Logger.Log("Alle apps selected " + currentProblemCategory.SelectScreenshot, LoggingSeverity.Info);
                             }
@@ -291,6 +468,12 @@ namespace Bugtracker.Configuration
             return problemCategories;
         }
 
+        /// <summary>
+        /// Get the specified targets from the startup configuration.
+        /// Uses reflection-based discovery and property mapping for extensibility.
+        /// </summary>
+        /// <param name="customConfigPath"></param>
+        /// <returns></returns>
         public List<Target> GetSpecifiedTargets(
             string customConfigPath = null)
         {
@@ -301,40 +484,83 @@ namespace Bugtracker.Configuration
 
             List<Target> targets = new();
 
-            // start reading autostart.config.xml
+            // Ensure TargetFactory is initialized
+            TargetFactory.Initialize();
+
+            // start reading config file
             using (XmlReader reader = XmlReader.Create(customConfigPath))
             {
-
-                IXmlLineInfo lineInfo = (IXmlLineInfo)reader;
-                int line = lineInfo.LineNumber;
+                bool inTargetsSection = false;
 
                 while (reader.Read())
                 {
                     if (reader.NodeType == XmlNodeType.Element)
                     {
-                        if (reader.LocalName.Equals("target"))
+                        // Track when we enter the <targets> section
+                        if (reader.LocalName.Equals("targets"))
                         {
-                            Target targetToAdd = new();
+                            inTargetsSection = true;
+                            continue;
+                        }
 
-                            targetToAdd.Name = vm.ReplaceKeywords(reader.GetAttribute("name"));
+                        // Only process <target> elements that are within the <targets> section
+                        if (reader.LocalName.Equals("target") && inTargetsSection)
+                        {
+                            string targetType = vm.ReplaceKeywords(reader.GetAttribute("type"));
 
+                            if (string.IsNullOrEmpty(targetType))
+                            {
+                                Logger.Log("Found target without 'type' attribute in targets section, skipping", LoggingSeverity.Warning);
+                                continue;
+                            }
 
-                            if (Enum.TryParse<TargetType>(vm.ReplaceKeywords(reader.GetAttribute("type")), out TargetType type))
-                                targetToAdd.TargetType = type;
+                        try
+                        {
+                            // Create target instance using factory
+                            Target target = TargetFactory.CreateTarget(targetType);
+
+                            // Load common properties
+                            target.Name = vm.ReplaceKeywords(reader.GetAttribute("name"));
 
                             bool defaultT = false;
-
                             if (reader.GetAttribute("default") != null)
                                 bool.TryParse(vm.ReplaceKeywords(reader.GetAttribute("default")), out defaultT);
+                            target.Default = defaultT;
 
-                            targetToAdd.Default = defaultT;
+                            bool obligatoryT = false;
+                            if (reader.GetAttribute("obligatory") != null)
+                                bool.TryParse(vm.ReplaceKeywords(reader.GetAttribute("obligatory")), out obligatoryT);
+                            target.Obligatory = obligatoryT;
 
-                            targetToAdd.Path = vm.ReplaceKeywords(reader.GetAttribute("path"));
-                            targetToAdd.Address = vm.ReplaceKeywords(reader.GetAttribute("address"));
+                            // Load target-specific properties using reflection
+                            LoadTargetPropertiesFromXml(target, reader, vm);
 
-                            targetToAdd.CustomBugtrackerFolderName = reader.GetAttribute("foldername");
+                            // Validate configuration
+                            if (!target.ValidateConfiguration(out string errorMessage))
+                            {
+                                Logger.Log($"Target '{target.Name}' validation failed: {errorMessage}", LoggingSeverity.Error);
+                                continue;
+                            }
 
-                            targets.Add(targetToAdd);
+                            targets.Add(target);
+                            Logger.Log($"Loaded target: {target.Name} (type: {targetType}, default: {target.Default}, obligatory: {target.Obligatory})", LoggingSeverity.Info);
+                        }
+                        catch (ArgumentException ex)
+                        {
+                            Logger.Log($"Unknown target type '{targetType}': {ex.Message}", LoggingSeverity.Error);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log($"Failed to load target: {ex.Message}", LoggingSeverity.Error);
+                        }
+                        }
+                    }
+                    else if (reader.NodeType == XmlNodeType.EndElement)
+                    {
+                        // Track when we exit the <targets> section
+                        if (reader.LocalName.Equals("targets"))
+                        {
+                            inTargetsSection = false;
                         }
                     }
                 }
@@ -343,6 +569,79 @@ namespace Bugtracker.Configuration
             return targets;
         }
 
+        /// <summary>
+        /// Load target properties from XML using reflection and XmlConfig attributes
+        /// </summary>
+        private void LoadTargetPropertiesFromXml(Target target, XmlReader reader, VariableManager vm)
+        {
+            // Get all properties with XmlConfig attribute
+            var properties = target.GetType().GetProperties()
+                .Where(p => p.GetCustomAttribute<XmlConfig>() != null)
+                .ToList();
+
+            foreach (var property in properties)
+            {
+                var xmlConfig = property.GetCustomAttribute<XmlConfig>();
+                string xmlValue = reader.GetAttribute(xmlConfig.AttributeName);
+
+                // Check if required attribute is missing
+                if (string.IsNullOrEmpty(xmlValue) && xmlConfig.Required)
+                {
+                    Logger.Log($"Missing required attribute '{xmlConfig.AttributeName}' for target '{target.Name}'", LoggingSeverity.Warning);
+                    continue;
+                }
+
+                // Skip if attribute not present and not required
+                if (xmlValue == null)
+                    continue;
+
+                try
+                {
+                    // Apply variable substitution if enabled
+                    if (xmlConfig.ApplyVariables)
+                        xmlValue = vm.ReplaceKeywords(xmlValue);
+
+                    // Convert and set property value
+                    object convertedValue = ConvertValue(xmlValue, property.PropertyType);
+                    property.SetValue(target, convertedValue);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"Failed to set property '{property.Name}' on target '{target.Name}': {ex.Message}", LoggingSeverity.Warning);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Convert a string value to the target property type
+        /// </summary>
+        private object ConvertValue(string value, Type targetType)
+        {
+            if (targetType == typeof(string))
+                return value;
+
+            if (targetType == typeof(int))
+                return int.Parse(value);
+
+            if (targetType == typeof(bool))
+                return bool.Parse(value);
+
+            if (targetType == typeof(long))
+                return long.Parse(value);
+
+            if (targetType == typeof(double))
+                return double.Parse(value);
+
+            // Add more type conversions as needed
+            return Convert.ChangeType(value, targetType);
+        }
+
+        /// <summary>
+        /// Get Logging Severity from the startup configuration.
+        /// </summary>
+        /// <param name="customConfigPath"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public LoggingSeverity GetLoggingSeverity(
             string customConfigPath = null)
         {

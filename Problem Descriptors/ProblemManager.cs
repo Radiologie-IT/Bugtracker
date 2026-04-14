@@ -7,6 +7,9 @@ using Bugtracker.Configuration;
 
 namespace Bugtracker.Problem_Descriptors
 {
+    /// <summary>
+    /// Manages all problem categories and their descriptions. Would be useful in real life....
+    /// </summary>
     public class ProblemManager
     {
         public List<ProblemCategory> ProblemCategories { get; set; }
@@ -32,6 +35,11 @@ namespace Bugtracker.Problem_Descriptors
             return null;
         }
 
+        /// <summary>
+        /// Get Problem Category by Name
+        /// </summary>
+        /// <param name="problemName"></param>
+        /// <returns></returns>
         public ProblemCategory GetProblemCategoryByName(string problemName)
         {
             foreach (var problemCategory in ProblemCategories)

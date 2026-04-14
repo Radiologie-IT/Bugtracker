@@ -1,7 +1,7 @@
 ﻿namespace Bugtracker.Globals_and_Information
 {
     /// <summary>
-    /// Singleton Class from User: Moo-Juice
+    /// Singleton Class from User: Moo-Juice. Use with caution.
     /// https://stackoverflow.com/questions/16865413/implementing-singleton-inheritable-class-in-c-sharp
     /// </summary>
     /// <typeparam name="T"></typeparam>

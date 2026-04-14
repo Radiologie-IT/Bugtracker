@@ -5,6 +5,9 @@ using System.IO;
 
 namespace Bugtracker.Ticketing
 {
+    /// <summary>
+    /// To be used as a base class for all ticket creation objects. Not used yet...
+    /// </summary>
     public class TicketCreationObject
     {
         public string       TicketName          { get; set; }

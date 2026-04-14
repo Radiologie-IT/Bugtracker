@@ -5,7 +5,7 @@ using Bugtracker.Configuration;
 namespace Bugtracker.Targeting
 {
     /// <summary>
-    /// 
+    /// The TargetManager class is responsible for managing the targets that are available to the user.
     /// </summary>
     public class TargetManager
     {
@@ -36,6 +36,23 @@ namespace Bugtracker.Targeting
         /// <summary>
         /// 
         /// </summary>
+        /// <returns></returns>
+        public List<Target> GetObligatoryTargets()
+        {
+            List<Target> obligatoryTargets = new List<Target>();
+
+            foreach (Target target in Targets)
+            {
+                if (target.Obligatory)
+                    obligatoryTargets.Add(target);
+            }
+
+            return obligatoryTargets;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
         public Target GetTargetByName(string name)
@@ -48,6 +65,10 @@ namespace Bugtracker.Targeting
             return null;
         }
 
+        /// <summary>
+        /// Summary used for console output.
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             string returnString = "";

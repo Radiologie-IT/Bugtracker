@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using Bugtracker.Utils;
+using Bugtracker.Configuration;
 
 namespace Bugtracker.InternalApplication
 {
@@ -40,8 +41,17 @@ namespace Bugtracker.InternalApplication
         {
             get
             {
-                System.Diagnostics.Debug.WriteLine("File check exist: " + Name + ": " + (LogFiles[0].Path != "" && Directory.Exists(LogFiles[0].Path)));
-                return Directory.Exists(ExecutableLocation);
+                int timeout = RunningConfiguration.GetInstance().FileCheckTimeoutMs;
+
+                // Log file check only if LogFiles exist
+                if (LogFiles != null && LogFiles.Count > 0 && LogFiles[0] != null)
+                {
+                    bool logPathExists = !string.IsNullOrEmpty(LogFiles[0].Path) && BugtrackerUtils.DirectoryExistsWithTimeout(LogFiles[0].Path, timeout);
+                    Logger.Log("File check exist: " + Name + ": " + logPathExists, LoggingSeverity.Debug);
+                }
+
+                // Check if executable location exists (handle null safely, use timeout to prevent network share hangs)
+                return !string.IsNullOrEmpty(ExecutableLocation) && BugtrackerUtils.DirectoryExistsWithTimeout(ExecutableLocation, timeout);
             }
         }
 
@@ -58,11 +68,18 @@ namespace Bugtracker.InternalApplication
         public string? PreFetchExecutionPath { get; set; }
         public string? PostFetchExecutionPath { get; set; }
 
+        public List<PowershellUtils.PowershellExecution> PowershellPre { get; set; }
+        public List<PowershellUtils.PowershellExecution> PowershellPost { get; set; }
+
+
         #endregion
 
         public Application()
         {
             LogFiles = new List<Log>();
+
+            PowershellPre = new List<PowershellUtils.PowershellExecution>();
+            PowershellPost = new List<PowershellUtils.PowershellExecution>();
         }
 
         public override string ToString()

@@ -9,6 +9,9 @@ using Bugtracker.Logging;
 
 namespace Bugtracker.Plugin
 {
+    /// <summary>
+    /// Very simple Plugin Manager. Loads all Plugins from the Plugin Folder.
+    /// </summary>
     public static class PluginManager
     {
         public static void Load()
@@ -17,39 +20,47 @@ namespace Bugtracker.Plugin
 
             pluginFiles.AddRange(Directory.GetFiles(Globals_and_Information.Globals.GetFittingPluginFilesPath(), "*.dll"));
 
+            // Pass 1: instantiate and register all plugins before activating any.
+            // This ensures LoadedPlugins is fully populated regardless of load order,
+            // even if a plugin's OnLoad blocks indefinitely (e.g. Application.Run).
             foreach (String pluginFile in pluginFiles)
             {
-                Type objectType = null;
-
-                System.Diagnostics.Debug.WriteLine("Trying to Load Plugin: " + pluginFile);
+                Logger.Log("Trying to Load Plugin: " + pluginFile, LoggingSeverity.Info);
 
                 try
                 {
                     Assembly asm = Assembly.LoadFrom(pluginFile);
 
-                    if(asm != null)
+                    if (asm != null)
                     {
                         var type = typeof(IPlugin);
-
                         var types = asm.GetTypes().Where(p => type.IsAssignableFrom(p));
 
                         foreach (var plugin in types)
                         {
-                            System.Diagnostics.Debug.WriteLine("Loaded Plugin: " + plugin);
-
                             IPlugin ipl = (IPlugin)Activator.CreateInstance(plugin);
-                            MethodInfo method = plugin.GetMethod("OnLoad");
-                            method.Invoke(ipl, null);
-
-                            Logger.Log("Loaded Plugin " + plugin, LoggingSeverity.Info);
-
                             RunningConfiguration.GetInstance().LoadedPlugins.Add(ipl);
+                            Logger.Log("Loaded Plugin " + plugin, LoggingSeverity.Info);
                         }
                     }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Logger.Log("Error while loading plugin: " + ex.ToString(), Logging.LoggingSeverity.Error);
+                }
+            }
+
+            // Pass 2: activate all registered plugins.
+            foreach (IPlugin plugin in RunningConfiguration.GetInstance().LoadedPlugins)
+            {
+                try
+                {
+                    MethodInfo method = plugin.GetType().GetMethod("OnLoad");
+                    method.Invoke(plugin, null);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log("Error while activating plugin " + plugin.Name + ": " + ex.ToString(), Logging.LoggingSeverity.Error);
                 }
             }
         }

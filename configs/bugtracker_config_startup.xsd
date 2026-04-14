@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <!--
+    XML Schema for bugtracker_config_startup.xml
+    Controls startup behavior, server location, and logging settings.
+  -->
+
+  <xs:element name="configuration">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="startup" type="StartupType" minOccurs="1" maxOccurs="1"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="StartupType">
+    <xs:attribute name="startGUI" type="xs:boolean" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Launch the GUI plugin on startup.
+          Set to false for console-only mode.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="firstStartup" type="xs:boolean" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Marks this as a first run. Automatically set to false after the first run completes.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="mainserver" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          IP address or hostname of the main server. Used for connectivity checks.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="configWebserverUrl" type="xs:anyURI" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          HTTP/HTTPS URL of the Django web server used to download configuration files.
+          Example: http://bugtracker.example.intern
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="loadConfigsFrom" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          UNC path or local directory from which bugtracker_config_main.xml and other
+          config files are loaded. Example: \\server\share\bugtrackerConfig
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="loggingSeverity" use="optional" default="3">
+      <xs:annotation>
+        <xs:documentation>
+          Log verbosity level:
+            1 = Error only
+            2 = Warning and above
+            3 = Info and above (default)
+            4 = Debug (all messages)
+        </xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:integer">
+          <xs:minInclusive value="1"/>
+          <xs:maxInclusive value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+
+    <xs:attribute name="fileCheckTimeoutMs" type="xs:positiveInteger" use="optional" default="1000">
+      <xs:annotation>
+        <xs:documentation>
+          Timeout in milliseconds for checking whether network directories exist.
+          Prevents the application from hanging when a network share is unreachable.
+          Default: 1000
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+</xs:schema>

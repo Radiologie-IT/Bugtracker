@@ -19,7 +19,8 @@ namespace Bugtracker.Logging
         public enum LogFindSpecifier
         {
             NEW,
-            ALL
+            ALL,
+            AGE
         }
         /// <summary>
         /// The Log Location Type specifies if the log file is stored on the server or on the client
@@ -42,7 +43,25 @@ namespace Bugtracker.Logging
         /// </summary>
         public TimeSpan TimeSpan { get; set; }
 
+        /// <summary>
+        /// The MaxAge attribute specifies the maximum amount of time that can have passed since the last modification date for the file to be accepted
+        /// the age is specified in minutes
+        /// </summary>
+        public int MaxAge { get; set; }
+
+        /// <summary>
+        /// The MinAge attribute specifies the maximum amount of time that needs to have passed since the last modification date for the file to be accepted
+        /// the age is specified in minutes
+        /// </summary>
+        public int MinAge { get; set; }
+
         public string? Lines { get; set; }
+
+        /// <summary>
+        /// The LineCount attribute species the maximum amount of lines to be copied.
+        /// If the amount of lines in the file is less than LineCount, the entire file will be copied.
+        /// </summary>
+        public int? LineCount { get; set; }
 
         #endregion
 

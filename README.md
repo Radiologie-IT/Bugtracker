@@ -1,76 +1,62 @@
-# Bugtracker
-Der Bugtracker dient in erster Linie der raschen Fehlerdokumentation und erleichtert die Analyse und Identifikation bei Softwareproblematiken. Ausgeführt als Applikation mit 
-grafischem Interface, oder via CMD/Terminal sammelt der Bugtracker Logdateien der jeweiligen Software und speichert sie auf einem Shared-Folder im Unternehmensnetzwerk. 
-Zusätzlich dazu sollen Screenshots der Anwendung und der Fehlermeldung automatisiert ausgelöst werden. Die gesammelten Logdateien, wie die Screenshots, werden zu einer .ZIP-Datei 
-komprimiert und zur weiteren Analyse gespeichert. 
+# Bugtracker V2
 
-Die Erstversion des Bugtrackers ist bereits erschienen und seit geraumer Zeit im Einsatz, jedoch ist hiervon nur noch die ausführbare Datei vorhanden, der Quellcode ging verloren. 
-Deshalb wurde beschlossen eine neue Version des Bugtrackers zu entwickeln und neue Features hinzuzufügen. Beispielsweise soll der Bugtracker nun auch (als Agent) aus der Distanz 
-(remote) ausgeführt werden können, ohne dass der Benutzer auf dem jeweiligen PC tätig werden muss. Der Bugtracker grundsätzlich auf Windowsumgebungen ausgeführt werden, aber auch 
-Kompatibilität mit Linux-Systemen vorweisen, um auch hier Log- und Protokolldateien automatisiert sammeln zu können. 
+Der Bugtracker dient in erster Linie der raschen Fehlerdokumentation und erleichtert die Analyse und Identifikation bei Softwareproblematiken. 
 
-## Entwicklung
+Ausgeführt als Applikation mit grafischem Interface oder via CMD/Terminal sammelt der Bugtracker Logdateien der jeweiligen Software, erstellt optional Screenshots und Bildschirmaufnahmen und überträgt alle gesammelten Daten an ein konfiguriertes Ziel (Netzwerkordner, E-Mail, Webserver oder PowerShell-Skript).
 
-Der Bugtracker wurde in Visual Basic programmiert und über einen One-Click-Installer installiert. Die grafische Oberfläche oben den Hostnamen des PCs an, darunter die aktuelle Uhrzeit inklusive des Datums. Unter der Zeitanzeige ist die Problembeschreibung angesiedelt, bestehend aus einem Dropdown-Menü mit folgenden Problemkategorien .
-Die Problemkategorien wurde erstellt, damit ein wiederkehrendes Fehlverhalten nicht jedes Mal aufs Neue im darunterliegenden Textfeld, oder telefonisch, beschrieben bzw. erklärt werden muss und um den Rahmen bei der Fehlersuche einzugrenzen. Im Textfeld können Kommentare zur Problematik gemacht werden.
-In der Programmsektion kann die bzw. können die fehlerhaften Programme ausgewählt werden. Die Logdateien der Programme deren Checkbox aktiv ist werden gesammelt. 
-Mittels „Aufzeichnen und Beenden“ werden die Logdateien eingeholt, die Screenshots ausgeführt und alle Dateien samt Bugtracker-Logdatei im Netzwerkordner gespeichert. 
+Die in Visual Basic geschriebene Erstversion des Bugtrackers ist bereits erschienen und seit geraumer Zeit im Einsatz, jedoch ist hiervon nur noch die ausführbare Datei vorhanden — der Quellcode ging verloren.
+Deshalb wurde beschlossen, eine neue Version des Bugtrackers zu entwickeln und neue Features umzusetzen.
 
+## Funktionen
+- Konfiguration vollständig über XML-Dateien (Applikationen, Ziele, Problemkategorien)
+- Logdateien anhand konfigurierter Pfade finden und kopieren
+  - Filterung nach neuester Datei (NEW), allen Dateien (ALL) oder Alter (AGE)
+  - Konfigurierbare Zeilenbegrenzung (letzte N Zeilen)
+  - Unterstützung für lokale, Netzwerk- und RDP-Client-Pfade
+- Aufnahme aller Monitore (Screenshots, Snipping-Tool, Schrittweise-Aufnahme, Videoaufnahme)
+- Mehrere Sendetypen konfigurierbar:
+  - Netzwerkordner (SMB)
+  - E-Mail (SMTP mit HTML-Vorlage)
+  - Web-Upload (REST-API, Django-Backend)
+  - PowerShell-Skript
+- Konfigurationsbezug mit Priorisierung: Webserver → SMB-Share → Lokale Kopie
+- Variablensubstitution in Konfigurationswerten (`%hostname%`, `%date%`, `%abbrev%`, …)
+- RDP-Sitzungserkennung (`%clientname%` vs. `%hostname%`)
+- Plugin-Architektur ([GUI als eigenständiges Plugin]())
+- Bedienung via [GUI]() und vollständiger [CLI]()
+- Windows Toast-Benachrichtigungen (siehe [Bugtracker Diagnostics UI]())
+- MSI-Installer auf Basis von WiX Toolset v5 (siehe [BugtrackerSetup]())
 
-### Funktionen des neuen Bugtrackers
-Die Zweitversion des Bugtrackers wird in verschiedenen Unterversionen entwickelt, diese werden im Kapitel Entwicklung noch näher erläutert. Folgende Funktionalitäten werden im neuen Bugtracker umgesetzt:
-*	Konfiguration des Bugtrackers erfolgt über XML-Datei
-  -	Speichert Pfade der Softwarekomponenten
-  -	Speichert Pfad zur Ablage des komprimierten Ordners
-  -	Logging aktivieren oder deaktivieren
-  -	Screenshots aktivieren oder deaktivieren
+## Versionierung
 
-*	Logdatei anhand des Pfades finden und mit Überordner kopieren
-  - Nur die letzten 2000 Zeilen (bzw. variabler Wert, Angabe über XML-Konfigurationsdatei), da in diesem Bereich in der Mehrheit der Fälle die gesuchten Informationen zu finden sind.
+### Version 2.0 ✔
+Usprüngliche Version von BugtrackerV2. Deckt Grundfunktionalität, grafische Oberfläche, sowie die ersten zusätzlichen Features:
+- Grundgerüst und Programmstruktur
+- XML-Konfigurationsdatei (f&uuml;r aktuelle Optionen siehe [CONFIGURATION.md](CONFIGURATION.md))
+- Log-Sammlung (`fetchLogfile`) und Screenshot-Erfassung (`captureMonitors`)
+- CLI-Steuerung (siehe [CONSOLE_USAGE.md](CONSOLE_USAGE.md))
+- GUI-Plugin (Diagnostics UI) mit dynamischer Programmsektion (siehe [Bugtracker Diagnostics UI]())
+- RDP-Sitzungsunterstützung
+- Variablensubstitutionssystem
 
-*	Aufnahme aller Monitore (Screenshots)
-  - Damit auch grafische Fehlerinformationen in GUI-Fenstern bzw. Informationen zur aktuellen Tätigkeit mitgeliefert werden können.
+### Version 2.1.x ✔ *(aktuelle Version)*
+Erweiterungen, die über den ursprünglichen Plan hinausgehen:
+- Neue Sendetypen: E-Mail/SMTP, Web-Upload, PowerShell-Skript
+- Konfigurationsbezug vom Webserver (HTTP)
+- Logrotation und konfigurierbare Zeilenbegrenzung
+- AGE/NEW/ALL Log-Suchspezifizierer
+- WiX-basierter MSI-Installer (ersetzt alten Click-Once-Installer) (siehe [BugtrackerSetup]())
+- Zusätzliche Aufnahmetypen (siehe [Bugtracker Diagnostics UI]()): Snipping-Tool (Multi-Monitor), Schrittweise-Aufnahme, Videoaufnahme (H.264) 
+- Toast-Benachrichtigungen (siehe [Bugtracker Diagnostics UI]())
 
-*	Der neue Bugtracker soll via Command Line angesprochen und ausgeführt werden können
+### Version 2.2
+Remote-Ausführung: Bugtracks sollen ohne direkten Zugriff auf den Ziel-PCs durchgeführt werden können. 
+Ein Agent soll automatisch auf den PCs gestartet werden und auf einem konfigurierten Port auf Anfragen warten.
 
-*	Der Bugtracker soll als Applikation mit grafischem Interface (Stichwort: Benutzerfreundlichkeit) bedient werden können
+## Kompatibilit&auml;t
+Die Applikation sowie die Plugins sind als C# Apps unter Verwendung von dotnet vollst&auml;ndig mit modernen Windows Systemen kompatibel.
+Linux-Kompatibilität ist zumindest für das Grundprojekt geplant, aber noch nicht umgesetzt. Eine systemunabhängige Unterstützung der Plugins ist derzeit nicht vorgesehen.
 
-*	Als Agent soll die Neuversion nun auch remote ausgeführt werden können, ohne die Vorgänge der auf dem PC arbeitenden Person zu beeinträchtigen.
-
-*	Prinzipiell wird der Bugtracker für die Anwendung auf Windowssystemen optimiert, auch weil er mittels C# entwickelt wird. Es soll dennoch eine grundsätzliche Kompatibilität zu Linux-Umgebungen geschaffen werden, um auch hier Logdateien und Ähnliches bekommen zu können.
-
-*	Die Programmsektion soll dynamisch generiert werden. Das bedeutet, dass Applikationen, die nicht am lokalen PC installiert sind, nicht zur Auswahl stehen.
-
-*	Dieses Programm soll in weiterer Folge als Open-Source-Projekt auf GitHub zur Verfügung stehen und so programmiert werden, dass auch andere Firmen, IT-AdministratorenInnen, EntwicklerInnen und LoganalystInnen damit arbeiten können.
-
-*	Der Installer soll als Click-Once-Installer zur Verfügung stehen. Die Applikation selbst soll nur alle 14 Tage nach Updates suchen und diese installieren. 
-
-
-### Versionierung
-
-#### Version 2.1 ✔
-In der Erstversion des Bugtrackers steht Grundfunktionalität im Vordergrund, dies inkludiert:
-*	Fertiges Grundgerüst (Programmstruktur)
-*	Fertige Konfigurationsdatei
-*	Fertigstellung der Grundfunktionalität in Modulen
-  - fetchLogfile() – Methode zum kopieren eines Logfiles in Zusammenarbeit mit der XML-Konfiguration  
-  - captureMonitors() – Methode zum screencapturing
-  - Logging
-*	Command Line Befehl zur Steuerung des Bugtrackers
-
-
-#### Version 2.2 ✔
-Die Zweitversion erweitert den Bugtracker um Folgende Funktionalitäten und Inhalte: 
-* Bedienung via GUI möglich (https://github.com/isaatonimov/Bugtracker-Diagnostics-UI-Plugin)
-* Dynamische Programmsektion
-
-
-#### Version 2.3
-Ab dieser Version sollen Bugtracks auch remote durchgeführt werden auf den jeweiligen PC vom dem der Bugtrack gemacht werden soll zugreifen zu müssen. 
-
-Der Agent soll automatisch auf den PCs gestartet werden und auf einem spezifischen Port hören. Dies wird in der Sektion Technische Spezifikationen noch erläutert.
-
-#### Copyright Info
-Nutzung von InputSimulator Project von michaelnoonan für Mouse Event Handling
-
-
+## Copyright
+- [MouseKeyHook](https://github.com/gmamaladze/globalmousekeyhook) von George Mamaladze — globaler Maus-Hook für die Schrittweise-Aufnahme
+- [ScreenRecorderLib](https://github.com/sskodje/ScreenRecorderLib) von Rune Holm — Bildschirmaufnahme für die Videoaufnahme

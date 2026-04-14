@@ -7,6 +7,9 @@ using Bugtracker.Plugin;
 using Bugtracker.Utils;
 using System.IO;
 using Bugtracker.Properties;
+using System.Windows.Forms;
+using System.Runtime;
+using CommunityToolkit.WinUI.Notifications;
 
 namespace Bugtracker
 {
@@ -23,6 +26,21 @@ namespace Bugtracker
         [STAThread]
         private static void Main(String[] args)
         {
+            ProfileOptimization.SetProfileRoot(@"C:\Bugtracker");
+            ProfileOptimization.StartProfile("Startup.Profile");
+
+            //ApplicationConfiguration.Initialize();
+            //Application.EnableVisualStyles();
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+            var rand = Application.HighDpiMode;
+
+            // Register AppUserModelID for toast notifications
+            // This is required for Windows toast notifications to work
+            ToastNotificationManagerCompat.OnActivated += toastArgs =>
+            {
+                // Handle toast activation if needed
+            };
+
             //Initialize Running Configuration Instance, before everything else
             RunningConfiguration runningConfiguration = RunningConfiguration.GetInstance();
             runningConfiguration.InitStartupProcedure();
@@ -46,11 +64,11 @@ namespace Bugtracker
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         private static void SetupApplication(RunningConfiguration rc, string[] args)
         {
-            Logger.Log("Checking if Blackholder exists.", LoggingSeverity.Info);
+            Logger.Log("Checking if Blackhole Folder exists.", LoggingSeverity.Info);
             System.IO.Directory.CreateDirectory(Globals_and_Information.Globals.LOCAL_BLACKHOLE_FODLER_PATH);
 
             System.IO.Directory.CreateDirectory(Globals_and_Information.Globals.LOCAL_PLUGIN_FILES_PATH);

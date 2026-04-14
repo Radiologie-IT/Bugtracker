@@ -5,22 +5,81 @@ using System.Management;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using Bugtracker.Attributes;
 using Bugtracker.Configuration;
 using Bugtracker.Logging;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Bugtracker.Globals_and_Information
 {
     public class PCInfo
     {
         private protected RunningConfiguration _configuration;
+        
         /// <summary>
         /// constructor
         /// </summary>
         public PCInfo()
         {
             Logger.Log("New PCinfo object was created.", (LoggingSeverity)2);
+
+            Logger.Log("GetHostname() executed", (LoggingSeverity)2);
+            Hostname = System.Environment.GetEnvironmentVariable("COMPUTERNAME");
+
+            Logger.Log("GetClientname() executed", (LoggingSeverity)2);
+            if (IsRemoteSession)
+            {
+                Clientname = System.Environment.GetEnvironmentVariable("CLIENTNAME");
+            }
+            else
+            {
+                Clientname = Hostname;
+            }
+
+            Logger.Log("GetDomainName() executed", (LoggingSeverity)2);
+            DomainName = System.Environment.UserDomainName;
+
+            Logger.Log("GetIPAddress() executed", (LoggingSeverity)2);
+
+            // Get IPv4 address, excluding loopback and link-local addresses
+            try
+            {
+                var hostEntry = Dns.GetHostEntry(Hostname);
+                var validAddresses = hostEntry.AddressList
+                    .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork) // IPv4 only
+                    .Where(ip => !System.Net.IPAddress.IsLoopback(ip)) // Exclude 127.x.x.x
+                    .Where(ip => !ip.ToString().StartsWith("169.254.")) // Exclude link-local 169.254.x.x
+                    .ToList();
+
+                if (validAddresses.Any())
+                {
+                    IPAddress = validAddresses.First().ToString();
+                }
+                else
+                {
+                    IPAddress = "unknown";
+                    Logger.Log("No valid IPv4 address found, using 'unknown'", LoggingSeverity.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                IPAddress = "unknown";
+                Logger.Log($"Failed to detect IP address: {ex.Message}", LoggingSeverity.Warning);
+            }
+
+            Logger.Log("GetMACAddress() executed", (LoggingSeverity)2);
+            MACAddress = (from nic in NetworkInterface.GetAllNetworkInterfaces()
+                     where nic.OperationalStatus == OperationalStatus.Up
+                     select nic.GetPhysicalAddress().ToString()
+                    ).FirstOrDefault().ToString();
+
+            Logger.Log("GetUsername() executed", (LoggingSeverity)2);
+            CurrentUserName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+
+            Logger.Log("GetBoottime() executed", (LoggingSeverity)2);
+            LastBootTime = PCInfo.UpTime.ToString();
         }
 
 
@@ -29,33 +88,17 @@ namespace Bugtracker.Globals_and_Information
         /// </summary>
         /// <returns></returns>
         [Key("hostname")]
-        public static string Hostname
-        {
-            get
-            {
-                Logger.Log("GetHostname() executed", (LoggingSeverity)2);
-                return Dns.GetHostName();
-            }
-            
-        }
+        public static string Hostname { get; private set; }
 
+        /// <summary>
+        /// Returns clientname of device
+        /// </summary>
         [Key("clientname")]
-        public static string Clientname
-        {
-            get
-            {
-                Logger.Log("Clientname executed", (LoggingSeverity)2);
-                if (IsRemoteSession)
-                {
-                    return System.Environment.GetEnvironmentVariable("CLIENTNAME");
-                }
-                else
-                {
-                    return Hostname;
-                }
-            }
-        }
+        public static string Clientname { get; private set; }
 
+        /// <summary>
+        /// Returns if device is in remote session
+        /// </summary>
         [Key("remoteSession")]
         public static bool IsRemoteSession
         {
@@ -67,91 +110,41 @@ namespace Bugtracker.Globals_and_Information
         /// </summary>
         /// <returns></returns>
         [Key("domainName")]
-        public static string DomainName
-        {
-            get
-            {
-                Logger.Log("GetDomainName() executed", (LoggingSeverity)2);
-                return System.Environment.UserDomainName;
-            }
-
-        }
+        public static string DomainName { get; private set; }
+ 
 
         /// <summary>
         /// Returns IP address of device
         /// </summary>
         /// <returns></returns>
         [Key("ipAddress")]
-        public static string IPAddress
-        {
-            get
-            {
-                Logger.Log("GetIPAddress() executed", (LoggingSeverity)2);
-                // host
-                var host = Dns.GetHostEntry(Dns.GetHostName());
-
-                // multiple results possible
-                foreach (var ip in host.AddressList)
-                {
-                    if (ip.AddressFamily == AddressFamily.InterNetwork)
-                    {
-                        return ip.ToString();
-                    }
-                }
-
-                // in case of error throw exception
-                throw new Exception("No network adapters with an IPv4 address in the system!");
-            }
-        }
+        public static string IPAddress { get; private set; }
 
         /// <summary>
         /// Returns MAC address of device
         /// </summary>
         /// <returns></returns>
         [Key("macAddress")]
-        public static string MACAddress
-        {
-            get
-            {
-                // get mac address
-                var mac_address =
-                        (from nic in NetworkInterface.GetAllNetworkInterfaces()
-                         where nic.OperationalStatus == OperationalStatus.Up
-                         select nic.GetPhysicalAddress().ToString()
-                        ).FirstOrDefault();
-
-
-                // return mac as string
-                return mac_address.ToString();
-            }
-
-        }
+        public static string MACAddress { get; private set; }
 
         /// <summary>
         /// Returns name of current user
         /// </summary>
         /// <returns></returns>
         [Key("userName")]
-        public static string CurrentUserName
-        {
-            get
-            {
-                // get current user name
-                return System.Security.Principal.WindowsIdentity.GetCurrent().Name;
-            }
-        }
+        public static string CurrentUserName { get; private set; }
+       
 
-        //Credits: - https://stackoverflow.com/a/972189/14617010
-        //Author: SLaks
+       
+        //Credits: - https://stackoverflow.com/a/16673001
+        //Author: Martin
         public static TimeSpan UpTime
         {
             get
             {
-                using (var uptime = new PerformanceCounter("System", "System Up Time"))
-                {
-                    uptime.NextValue();
-                    return TimeSpan.FromSeconds(uptime.NextValue());
-                }
+                [DllImport("kernel32")]
+                extern static UInt64 GetTickCount64();
+                return TimeSpan.FromMilliseconds(GetTickCount64());
             }
         }
 
@@ -161,13 +154,7 @@ namespace Bugtracker.Globals_and_Information
         /// </summary>
         /// <returns></returns>
         [Key("bootTime")]
-        public static string LastBootTime
-        {
-            get
-            {
-                return PCInfo.UpTime.ToString();
-            }
-        }
+        public static string LastBootTime { get; private set; }
 
 
         /// <summary>

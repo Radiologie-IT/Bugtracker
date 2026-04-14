@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using Bugtracker.Attributes;
-using Bugtracker.Capture.LogProcessing;
+using Bugtracker.Capture.Log;
 using Bugtracker.Configuration;
 using Bugtracker.Globals_and_Information;
 using Bugtracker.InternalApplication;

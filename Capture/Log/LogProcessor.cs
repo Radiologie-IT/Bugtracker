@@ -5,9 +5,12 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using Bugtracker.Configuration;
+using Bugtracker.Logging;
+using Bugtracker.Utils;
+using Windows.ApplicationModel.DataTransfer;
 using static System.Environment;
 
-namespace Bugtracker.Capture.LogProcessing
+namespace Bugtracker.Capture.Log
 {
     public static class LogProcessor
     {
@@ -31,8 +34,8 @@ namespace Bugtracker.Capture.LogProcessing
             {
                 foreach (Logging.Log logF in app.LogFiles)
                 {
-                    System.Diagnostics.Debug.WriteLine("Path: " + logF.Path);
-                    System.Diagnostics.Debug.WriteLine("Filename: " + logF.Filename);
+                    Logger.Log("Path: " + logF.Path, LoggingSeverity.Debug);
+                    Logger.Log("Filename: " + logF.Filename, LoggingSeverity.Debug);
 
                     FileInfo[] allFiles = null;
                     FileInfo newestFile = null;
@@ -41,27 +44,35 @@ namespace Bugtracker.Capture.LogProcessing
 
                     if (Directory.Exists(logF.Path))
                     {
-                        if (logF.Find == Logging.Log.LogFindSpecifier.NEW)
+                        switch(logF.Find)
                         {
-                            if(logDir.GetFiles(logF.Filename).Length > 0)
-                                newestFile = logDir.GetFiles(logF.Filename).OrderByDescending(f => f.LastWriteTime).First();
-                        }
-                        else
-                        {
-                            allFiles = logDir.GetFiles(logF.Filename);
-                        }
+                            case Logging.Log.LogFindSpecifier.ALL:
+                                allFiles = logDir.GetFiles(logF.Filename);
+                                foreach (FileInfo file in allFiles)
+                                {
+                                    allLogFiles[file.FullName] = (app, logF);
+                                }
+                                break;
 
-                        if (logF.Find == Logging.Log.LogFindSpecifier.ALL)
-                        {
-                            foreach (FileInfo file in allFiles)
-                            {
-                                allLogFiles[file.FullName] = (app, logF);
-                            }
-                        }
-                        else
-                        {
-                            if(newestFile != null) 
-                                allLogFiles[newestFile.FullName] = (app, logF);
+                            case Logging.Log.LogFindSpecifier.NEW:
+                                if (logDir.GetFiles(logF.Filename).Length > 0)
+                                    newestFile = logDir.GetFiles(logF.Filename).OrderByDescending(f => f.LastWriteTime).First();
+                                if (newestFile != null)
+                                    allLogFiles[newestFile.FullName] = (app, logF);
+                                break;
+
+                            case Logging.Log.LogFindSpecifier.AGE:
+                                allFiles = logDir.GetFiles(logF.Filename);
+                                foreach (FileInfo file in allFiles)
+                                {
+                                    DateTime lastModified = file.LastWriteTime;
+                                    int fileAge = (int)DateTime.Now.Subtract(lastModified).TotalMinutes;
+                                    if ((fileAge >= logF.MinAge && fileAge <= logF.MaxAge))
+                                    {
+                                        allLogFiles[file.FullName] = (app, logF);
+                                    }
+                                }
+                                break;
                         }
 
                     }
@@ -72,7 +83,7 @@ namespace Bugtracker.Capture.LogProcessing
         }
 
         /// <summary>
-        /// 
+        /// Method intended to build destination Path
         /// </summary>
         /// <returns></returns>
         public static string BuildDestinationPath()
@@ -83,6 +94,11 @@ namespace Bugtracker.Capture.LogProcessing
             return destinationPath;
         }
 
+
+        /// <summary>
+        /// Deletes all Targeted log files by Application
+        /// </summary>
+        /// <param name="targetApplications"></param>
         public static void DeleteAllTargeted(List<InternalApplication.Application> targetApplications)
         {
             Dictionary<string, (InternalApplication.Application application, Logging.Log log)> appLogs =
@@ -96,6 +112,10 @@ namespace Bugtracker.Capture.LogProcessing
             DeletedLogs?.Invoke(null, null);
         }
 
+        /// <summary>
+        /// Renames All Targeted Application Logs, intended for Log Capture From Timepoint to Timepoint
+        /// </summary>
+        /// <param name="targetApplications"></param>
         public static void RenameAllTargeted(List<InternalApplication.Application> targetApplications)
         {
             Dictionary<string, (InternalApplication.Application application, Logging.Log log)> appLogs =
@@ -103,14 +123,14 @@ namespace Bugtracker.Capture.LogProcessing
 
             string newFilename;
             string date;
-            string? filenameWithoutEx;
+            string filenameWithoutEx;
 
             foreach (string log in appLogs.Keys)
             {
                 date = DateTime.Now.ToString("yyyy-MM-dd-hh-mm-ss");
                 filenameWithoutEx = Path.GetFileNameWithoutExtension(log);
 
-                newFilename =  $"{filenameWithoutEx}[{date}].log";
+                newFilename = $"{filenameWithoutEx}[{date}].log";
 
                 File.Move(log, $"{Path.GetDirectoryName(log)}\\{newFilename}");
             }
@@ -120,45 +140,117 @@ namespace Bugtracker.Capture.LogProcessing
 
 
         /// <summary>
-        /// Copies file 
-        /// If file has more lines than n = MAX_LINES_OF_LOG_FILE
-        /// than only the last n lines will be stored in bugtracker zip
+        /// Copies a log file to the destination directory, optionally limited to the last
+        /// <paramref name="lineCount"/> lines. When a line limit is set, uses backwards
+        /// seeking to locate the tail boundary so only the required portion of the file
+        /// is ever read — no full-file load into memory. When no limit is set, the file
+        /// is piped verbatim via a buffered stream copy.
         /// </summary>
-        public static void CopyFile(string pathToLogFile, Logging.Log log, string destionPath)
+        public static void CopyFile(string pathToLogFile, string destinationPath, int? lineCount = null)
         {
-            List<string> lines = new();
+            string destinationFile = destinationPath + "\\" + Path.GetFileName(pathToLogFile);
 
-            using (var stream = new FileStream(pathToLogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            if (lineCount > 0)
             {
-                using var reader = new StreamReader(stream, Encoding.UTF8);
+                using var readStream = new FileStream(pathToLogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                long startOffset = FindLastLinesOffset(readStream, lineCount.Value);
+                readStream.Seek(startOffset, SeekOrigin.Begin);
 
+                using var reader = new StreamReader(readStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                using var writer = new StreamWriter(destinationFile, append: false, Encoding.UTF8);
                 string line;
-
                 while ((line = reader.ReadLine()) != null)
+                    writer.WriteLine(line);
+            }
+            else
+            {
+                // No line limit: copy verbatim via buffered stream copy
+                using var readStream = new FileStream(pathToLogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var writeStream = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None);
+                readStream.CopyTo(writeStream);
+            }
+
+            Logger.Log("log file path: " + destinationFile, LoggingSeverity.Debug);
+        }
+
+        /// <summary>
+        /// Scans <paramref name="stream"/> backwards in fixed-size chunks to find the byte
+        /// offset at which the last <paramref name="lineCount"/> lines begin. At most a few
+        /// chunk-reads are needed — the full file is never loaded into memory.
+        /// Returns 0 when the file has fewer lines than requested (copy from start).
+        /// <para>
+        /// UTF-8 safe: 0x0A only ever appears as an actual newline in valid UTF-8;
+        /// continuation bytes (0x80–0xBF) never collide with it.
+        /// </para>
+        /// </summary>
+        private static long FindLastLinesOffset(FileStream stream, int lineCount)
+        {
+            const int bufferSize = 4096;
+            byte[] buffer = new byte[bufferSize];
+            long fileSize = stream.Length;
+
+            if (fileSize == 0)
+                return 0;
+
+            // A file that does not end with '\n' has one unterminated line after the
+            // final '\n'. Pre-counting it means the loop condition works uniformly for
+            // both trailing-newline and non-trailing-newline files.
+            stream.Seek(-1, SeekOrigin.End);
+            int newlinesFound = (stream.ReadByte() == '\n') ? 0 : 1;
+
+            long scanPosition = fileSize;
+
+            while (scanPosition > 0)
+            {
+                int chunkSize = (int)Math.Min(bufferSize, scanPosition);
+                scanPosition -= chunkSize;
+                stream.Seek(scanPosition, SeekOrigin.Begin);
+                int bytesRead = stream.Read(buffer, 0, chunkSize);
+
+                for (int i = bytesRead - 1; i >= 0; i--)
                 {
-                    lines.Add(line);
+                    if (buffer[i] == '\n' && ++newlinesFound > lineCount)
+                        return scanPosition + i + 1;
                 }
             }
 
-            //if (!string.IsNullOrEmpty(log.Lines))
-            //    lines.TakeLast(Int32.Parse(log.Lines));
-
-            //var lines = !string.IsNullOrEmpty(log.Lines) ? File.ReadLines(pathToLogFile).TakeLast(Int32.Parse(log.Lines)) : File.ReadLines(pathToLogFile);
-
-            File.WriteAllLines(destionPath + "\\" + Path.GetFileName(pathToLogFile), lines);
-
-            System.Diagnostics.Debug.WriteLine("log file path: " + destionPath + "\\" + Path.GetFileName(pathToLogFile));
+            // Fewer lines in the file than requested — start from the beginning
+            return 0;
         }
 
+        /// <summary>
+        /// Fetches All Log Files from targeted applications, main function for log aquiering
+        /// </summary>
+        /// <param name="targetApplications"></param>
         public static void FetchAllLogFiles(List<InternalApplication.Application> targetApplications)
         {
             Dictionary<string, (InternalApplication.Application application, Logging.Log log)> appLogs = InitLogFilesFromAllTargetedApplications(targetApplications);
+
+            //pre Fetch PS Scripts
+            foreach (InternalApplication.Application targetApplication in targetApplications)
+            {
+                foreach (PowershellUtils.PowershellExecution psex in targetApplication.PowershellPre)
+                {
+                    psex.Execute();
+                }
+            }
+            
 
             foreach (string log in appLogs.Keys)
             {
                 appLogs.TryGetValue(log, out (InternalApplication.Application application, Logging.Log log) appAndLog);
 
                 FetchLog(log, appAndLog);
+            }
+
+
+            //post Fetch PS Scripts
+            foreach (InternalApplication.Application targetApplication in targetApplications)
+            {
+                foreach (PowershellUtils.PowershellExecution psex in targetApplication.PowershellPost)
+                {
+                    psex.Execute();
+                }
             }
 
             FetchedLogs?.Invoke(null, null);
@@ -187,14 +279,16 @@ namespace Bugtracker.Capture.LogProcessing
             // check if file exists
             if (File.Exists(logfilePath))
             {
-                fetch_status = true;
-                // copy file to desired destination
 
-                string path = bugtrackerFolderPath + "\\" + appAndLog.log.LocationType + "\\" + 
+                fetch_status = true;
+
+                // copy file to desired destination
+                string path = bugtrackerFolderPath + "\\" + appAndLog.log.LocationType + "\\" +
                               Path.GetDirectoryName(appAndLog.log.Path[3..]);
-                
+
                 Directory.CreateDirectory(path);
-                CopyFile(logfilePath, appAndLog.log, path);
+                CopyFile(logfilePath, path, appAndLog.log.LineCount);
+
             }
 
             //post Fetch Program

@@ -1,0 +1,623 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <!--
+    XML Schema for bugtracker_config_main.xml
+    Defines targets, problem categories, and application log definitions.
+
+    Section order matters: <targets> must appear before <problem-categories>
+    because categories reference targets by name.
+
+    Variable substitution (%variablename%) is supported in most string attributes.
+    See config.md for the full list of available variables.
+  -->
+
+  <xs:element name="configuration">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="targets"           type="TargetsType"           minOccurs="1" maxOccurs="1"/>
+        <xs:element name="problem-categories" type="ProblemCategoriesType" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="applications"       type="ApplicationsType"      minOccurs="0" maxOccurs="1"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       TARGETS
+  ═══════════════════════════════════════════════════════ -->
+
+  <xs:complexType name="TargetsType">
+    <xs:sequence>
+      <xs:element name="target" type="TargetType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Discriminated union via xs:anyAttribute; each target type uses
+       its own set of attributes.  The 'type' attribute is the discriminator. -->
+  <xs:complexType name="TargetType">
+    <xs:annotation>
+      <xs:documentation>
+        A destination where bugtracker data can be sent.
+        The 'type' attribute selects the target implementation:
+          folder     – copies files to a local or network directory
+          mail       – sends data as a ZIP attachment via SMTP
+          powershell – executes a PowerShell script
+          webupload  – uploads via HTTP REST API to the Django backend
+      </xs:documentation>
+    </xs:annotation>
+
+    <!-- Common attributes -->
+    <xs:attribute name="type" use="required">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="folder"/>
+          <xs:enumeration value="mail"/>
+          <xs:enumeration value="powershell"/>
+          <xs:enumeration value="webupload"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+
+    <xs:attribute name="name" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Unique display name. Referenced by problem-category target elements.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="default" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>
+          If true, this target is pre-selected in the GUI send dialog.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="obligatory" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>
+          If true, data is always sent to this target regardless of user selection.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <!-- ── folder target ── -->
+    <xs:attribute name="path" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [folder] Destination directory. Supports UNC paths and environment variables.
+          [powershell] Path to the .ps1 script file (fallback if downloadLink fails).
+          Required for: folder, powershell.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="foldername" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [folder] Template for the folder name created at the destination.
+          Supports variable substitution. If omitted, uses the original bugtracker folder name.
+          Example: Bugtracker-%idString%.%USERDOMAIN%-%date%-%time%
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="address" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [folder] Display label for the target. No functional effect.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <!-- ── mail target ── -->
+    <xs:attribute name="sender" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>[mail] From address. Required for mail targets.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="recipient" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>[mail] To address. Required for mail targets.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="smtpserver" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>[mail] SMTP server hostname or IP. Required for mail targets.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="smtpport" type="xs:positiveInteger" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [mail] SMTP port. Required for mail targets.
+          Common values: 25 (plain), 465 (SSL), 587 (STARTTLS).
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="smtpssl" type="xs:boolean" use="optional">
+      <xs:annotation>
+        <xs:documentation>[mail] Enable SSL/TLS for the SMTP connection. Required for mail targets.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="smtpuser" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>[mail] SMTP authentication username. Required for mail targets.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="smtppass" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>[mail] SMTP authentication password. Required for mail targets.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="subject" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [mail] Email subject line. Required for mail targets. Supports variable substitution.
+          Example: Bugtracker: %clientname%.%USERDOMAIN% (%date%-%time%)
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="htmltemplate" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [mail] Local or UNC path to an HTML file used as the email body. Required for mail targets.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="attachzip" type="xs:boolean" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [mail] If true, attaches a ZIP of the bugtracker folder to the email. Required for mail targets.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <!-- ── powershell target ── -->
+    <xs:attribute name="downloadLink" type="xs:anyURI" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [powershell] HTTP/HTTPS URL to download the script from before execution.
+          If download fails, falls back to the local 'path'.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="saveAs" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [powershell] Local path where the downloaded script is saved.
+          Default: [InstallDir]\scripts\[filename from URL]
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="passvariables" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>
+          [powershell] Pass the Bugtracker variable dictionary as a hashtable to the script.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="passfolders" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>
+          [powershell] Pass the list of captured bugtracker folder paths to the script.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="passproblemcat" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>
+          [powershell] Pass the selected problem category name to the script.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logdefault" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>[powershell] Forward the script's default output stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logerrors" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>[powershell] Forward the script's error stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logwarnings" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>[powershell] Forward the script's warning stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="loginformations" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>[powershell] Forward the script's information stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logprogress" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>[powershell] Forward the script's progress stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <!-- ── webupload target ── -->
+    <xs:attribute name="serverurl" type="xs:anyURI" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          [webupload] Base URL of the Bugtracker Django web server. Required for webupload targets.
+          Example: http://bugtracker.example.intern
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="verbose" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>[webupload] Enable verbose logging from the upload library.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       PROBLEM CATEGORIES
+  ═══════════════════════════════════════════════════════ -->
+
+  <xs:complexType name="ProblemCategoriesType">
+    <xs:sequence>
+      <xs:element name="problem-category" type="ProblemCategoryType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ProblemCategoryType">
+    <xs:annotation>
+      <xs:documentation>
+        A selectable problem type shown to the user. Controls which applications
+        are captured and which targets receive the data.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="description"   type="ProblemDescriptionType"  minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="app-selection" type="AppSelectionType"         minOccurs="1" maxOccurs="1"/>
+      <xs:element name="target"        type="ProblemTargetRefType"     minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+
+    <xs:attribute name="name" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Display name shown in the GUI dropdown.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="ticket" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Short abbreviation used as the %abbrev% variable and as the ticket prefix
+          for web uploads. Example: xr5-error
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <xs:complexType name="ProblemDescriptionType">
+    <xs:attribute name="text" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Pre-filled problem description text shown to the user.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <xs:complexType name="AppSelectionType">
+    <xs:annotation>
+      <xs:documentation>
+        Comma-separated list of application names to pre-select for capture.
+        Special values:
+          All    – select all configured applications
+          Screen – capture screenshots from all monitors
+        Example: Screen,IP8,XR5
+      </xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="xs:string"/>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="ProblemTargetRefType">
+    <xs:attribute name="name" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Name of a target defined in the &lt;targets&gt; section.
+          Data will be sent to this target when this problem category is selected.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       APPLICATIONS
+  ═══════════════════════════════════════════════════════ -->
+
+  <xs:complexType name="ApplicationsType">
+    <xs:sequence>
+      <xs:element name="application" type="ApplicationType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ApplicationType">
+    <xs:annotation>
+      <xs:documentation>
+        An application that Bugtracker can collect log files from.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="log"        type="LogType"/>
+        <xs:element name="pre-fetch"  type="FetchScriptType"/>
+        <xs:element name="post-fetch" type="FetchScriptType"/>
+        <xs:element name="powershell" type="ApplicationPowershellType"/>
+      </xs:choice>
+    </xs:sequence>
+
+    <xs:attribute name="name" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Unique application name. Referenced in problem-category app-selection values.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="executable" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Path to the application's executable or install directory.
+          Used to determine whether the application is installed (for show="installed").
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="standard" type="xs:boolean" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          If true, this application is pre-selected when no problem category is active.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="show" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Controls visibility in the GUI:
+            always    – always shown, regardless of installation
+            installed – only shown if 'executable' path exists on disk
+            never     – hidden from UI; still accessible programmatically
+        </xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="always"/>
+          <xs:enumeration value="installed"/>
+          <xs:enumeration value="never"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- ── Log entry ── -->
+  <xs:complexType name="LogType">
+    <xs:annotation>
+      <xs:documentation>
+        Defines a log file or set of log files to collect from an application.
+      </xs:documentation>
+    </xs:annotation>
+
+    <xs:attribute name="location" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Where to look for the log file:
+            client – local machine (or via \\tsclient\ in an RDP session)
+            server – network share (UNC path)
+            host   – the RDP host machine
+          Case-insensitive.
+        </xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="client"/>
+          <xs:enumeration value="Client"/>
+          <xs:enumeration value="server"/>
+          <xs:enumeration value="host"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+
+    <xs:attribute name="path" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Directory path where the log file(s) are located.
+          Supports environment variables and Bugtracker variables (e.g., %clientname%).
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="filename" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Filename or glob pattern (e.g., *.log, app_*.log).
+          Supports wildcard (*) and Bugtracker variables.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="find" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          File selection strategy:
+            NEW – copy only the most recently modified matching file
+            ALL – copy every matching file
+            AGE – copy files modified within the minage/maxage window (minutes)
+        </xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="NEW"/>
+          <xs:enumeration value="New"/>
+          <xs:enumeration value="ALL"/>
+          <xs:enumeration value="All"/>
+          <xs:enumeration value="AGE"/>
+          <xs:enumeration value="Age"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+
+    <xs:attribute name="minage" type="xs:nonNegativeInteger" use="optional" default="0">
+      <xs:annotation>
+        <xs:documentation>
+          Minimum file age in minutes. Only used when find="AGE".
+          Files modified more recently than this value are excluded.
+          Default: 0 (no minimum age restriction).
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="maxage" type="xs:positiveInteger" use="optional" default="60">
+      <xs:annotation>
+        <xs:documentation>
+          Maximum file age in minutes. Only used when find="AGE".
+          Files older than this value are excluded.
+          Default: 60.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="lastlines" type="xs:positiveInteger" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          Trim the copied log file to the last N lines.
+          If omitted, the full file is copied. Default in code: 2000 when globally enabled.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- ── pre-fetch / post-fetch ── -->
+  <xs:complexType name="FetchScriptType">
+    <xs:annotation>
+      <xs:documentation>
+        A shell command or script path executed before (pre-fetch) or after
+        (post-fetch) log files are collected from the application.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="path" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Command or script path to execute.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- ── powershell inside application ── -->
+  <xs:complexType name="ApplicationPowershellType">
+    <xs:annotation>
+      <xs:documentation>
+        A PowerShell script executed as part of the capture for this application.
+        Can run before log collection (pre-fetch) or after (post-fetch).
+      </xs:documentation>
+    </xs:annotation>
+
+    <xs:attribute name="execution" use="required">
+      <xs:annotation>
+        <xs:documentation>When to execute: pre-fetch (before log collection) or post-fetch (after).</xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="pre-fetch"/>
+          <xs:enumeration value="post-fetch"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+
+    <xs:attribute name="path" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Local or UNC path to the .ps1 script. Used as fallback if downloadLink fails.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="downloadLink" type="xs:anyURI" use="optional">
+      <xs:annotation>
+        <xs:documentation>HTTP/HTTPS URL to download the script from before execution.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="saveAs" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>Local path where the downloaded script is saved.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="passfolders" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>Pass bugtracker folder paths to the script.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="passvariables" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>Pass the Bugtracker variable dictionary as a hashtable to the script.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="passproblemcat" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>Pass the selected problem category to the script.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logdefault" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>Forward the script's default output stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logerrors" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>Forward the script's error stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logwarnings" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>Forward the script's warning stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="loginformations" type="xs:boolean" use="optional" default="true">
+      <xs:annotation>
+        <xs:documentation>Forward the script's information stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+
+    <xs:attribute name="logprogress" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>Forward the script's progress stream to the Bugtracker log.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+</xs:schema>

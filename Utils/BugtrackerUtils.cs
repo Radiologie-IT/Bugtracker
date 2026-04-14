@@ -9,6 +9,13 @@ using Bugtracker.Console;
 using Bugtracker.Globals_and_Information;
 using System.Collections.Generic;
 using System.Linq;
+using Bugtracker.Variables;
+using System.Net.Mail;
+using System.Net.Mime;
+using System.Net;
+using System.IO.Compression;
+using Bugtracker.Problem_Descriptors;
+using System.Threading.Tasks;
 
 namespace Bugtracker.Utils
 {
@@ -16,13 +23,13 @@ namespace Bugtracker.Utils
     {
         /// <summary>
         /// Run bugtracker as CMDlet using
-        /// ConsoleHandler. 
-        /// 
-        /// As this project is define as windows 
+        /// ConsoleHandler.
+        ///
+        /// As this project is define as windows
         /// forms application system.console.writeline (..)
         /// wont work, so we have to manually include
         /// kernel32.dll.
-        /// 
+        ///
         /// For more info look into ConsoleHandler.cs
         /// </summary>
         public static void StartCommandLineApplication(string[] args)
@@ -39,6 +46,41 @@ namespace Bugtracker.Utils
 
             // close console session
             ConsoleHandler.Destroy();
+        }
+
+        /// <summary>
+        /// Check if a directory exists with a timeout to prevent hanging on unreachable network shares.
+        /// Default timeout is 1000ms (1 second), which is appropriate for network path checks during startup.
+        /// </summary>
+        /// <param name="path">The directory path to check</param>
+        /// <param name="timeoutMilliseconds">Maximum time to wait in milliseconds (default: 1000ms)</param>
+        /// <returns>True if directory exists and check completed within timeout; False if doesn't exist or timeout exceeded</returns>
+        public static bool DirectoryExistsWithTimeout(string path, int timeoutMilliseconds = 1000)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return false;
+            }
+
+            try
+            {
+                var task = Task.Run(() => Directory.Exists(path));
+
+                if (task.Wait(timeoutMilliseconds))
+                {
+                    return task.Result;
+                }
+                else
+                {
+                    Logger.Log($"Directory existence check timed out after {timeoutMilliseconds}ms for path: {path}", LoggingSeverity.Debug);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"Error checking directory existence for '{path}': {ex.Message}", LoggingSeverity.Debug);
+                return false;
+            }
         }
 
         internal static void FirstStartupProcedure(RunningConfiguration runningConfiguration, object rc)
@@ -170,7 +212,6 @@ namespace Bugtracker.Utils
         /// can execute ps1, bat and exe files.
         /// </summary>
         /// <param name="path"></param>
-
         public static void ExecuteScript(string path)
         {
             if (path.Contains(".ps1"))
@@ -191,11 +232,20 @@ namespace Bugtracker.Utils
             }
         }
 
+        /// <summary>
+        /// Loads file content as string
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
         public static string LoadFileContentAsString(string path)
         {
             return File.ReadAllText(path, Encoding.UTF8);
         }
 
+        /// <summary>
+        /// Delete content of directory
+        /// </summary>
+        /// <param name="path"></param>
         public static void DeleteContentOfDirectory(string path)
         {
             System.IO.DirectoryInfo di = new(path);
@@ -210,6 +260,11 @@ namespace Bugtracker.Utils
             }
         }
 
+        /// <summary>
+        /// Return all existing directories
+        /// </summary>
+        /// <param name="toCheck"></param>
+        /// <returns></returns>
         public static List<DirectoryInfo> GetAllExisitingDirectories(List<DirectoryInfo> toCheck)
         {
             foreach (var di in toCheck.Where(di => di.Exists == false))

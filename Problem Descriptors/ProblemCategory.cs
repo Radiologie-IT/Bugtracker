@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace Bugtracker.Problem_Descriptors
 {
+    /// <summary>
+    /// Problem Category Object. Contains all information about a problem category.
+    /// </summary>
     public class ProblemCategory
     {
         public string TicketAbbreviation { get; internal set; }

@@ -3,9 +3,9 @@ using Bugtracker.InternalApplication;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Bugtracker.Capture.LogProcessing;
 using Bugtracker.Configuration;
 using Bugtracker.Utils;
+using Bugtracker.Capture.Log;
 
 namespace Bugtracker.Console.Commands.capture
 {
@@ -62,7 +62,7 @@ namespace Bugtracker.Console.Commands.capture
                     targetedApplications.Add(a);
             }
 
-            System.Diagnostics.Debug.WriteLine("targeted Applications all: " + targetedApplications.Count);
+            Logging.Logger.Log("Fetching log files from " + targetedApplications.Count + " installed applications", Logging.LoggingSeverity.Debug);
 
             LogProcessor.FetchAllLogFiles(targetedApplications);
 

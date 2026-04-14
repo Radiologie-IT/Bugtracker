@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Bugtracker.Attributes;
-using Bugtracker.Capture.LogProcessing;
+using Bugtracker.Capture;
 using Bugtracker.Configuration;
 using Bugtracker.Send;
 using Bugtracker.Targeting;

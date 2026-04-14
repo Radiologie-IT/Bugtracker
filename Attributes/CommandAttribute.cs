@@ -2,6 +2,9 @@
 
 namespace Bugtracker.Attributes
 {
+    /// <summary>
+    /// Command Attribute. Used to mark methods and classes as commands.
+    /// </summary>
     internal class CommandAttribute : Attribute
     {
         public CommandAttribute(string commandName)

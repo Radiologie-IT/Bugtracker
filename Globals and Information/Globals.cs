@@ -1,6 +1,4 @@
-﻿using Bugtracker.Configuration;
-using System;
-using System.Diagnostics;
+﻿using System;
 using System.IO;
 using System.Reflection;
 
@@ -31,16 +29,16 @@ namespace Bugtracker.Globals_and_Information
         public static readonly string ASSEMBLY_WORKING_DIRECTORY            = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
         public static readonly string TMP_DIRECTORY_NAME                    = "tmp";
-        public static readonly string LOG_FILE_NAME                         = "bugtracker.log";
+        public static readonly string LOG_FILE_NAME                         = $"bugtracker.log";
         public static readonly string STARTUP_CONFIG_NAME                   = "bugtracker_config_startup.xml";
         public static readonly string CONFIG_DIRECTROY_NAME                 = "configs";
         public static readonly string BLACKHOLE_FOLDER_NAME                 = "blackhole";
         public static readonly string PLUGIN_FOLDER_NAME                    = "plugins";
         public static readonly string RESOURCES_FOLDER_NAME                 = "resources";
-
         public static readonly string TMP_DIRECTORY                         = System.IO.Path.GetTempPath() + "\\bugtracker_temp";
-
-        public static readonly string LOG_FILE_PATH                         = Path.Join(APPLICATION_DIRECTORY,LOG_FILE_NAME);
+        public static readonly string LOG_DIRECTORY                            = Path.Join(APPLICATION_DIRECTORY, "Logs");
+        public static readonly string LOG_FILE_PATH                         = Path.Join(LOG_DIRECTORY, LOG_FILE_NAME);
+        public static readonly int LOG_ROTATION_COUNT                       = 10;
         public static readonly string LOCAL_STARTUP_CONFIG_FILE_PATH        = Path.Join(APPLICATION_DIRECTORY, STARTUP_CONFIG_NAME);
         public static readonly string LOCAL_CONFIG_FILES_PATH               = Path.Join(APPLICATION_DIRECTORY,CONFIG_DIRECTROY_NAME);
         public static readonly string LOCAL_BLACKHOLE_FODLER_PATH           = Path.Join(APPLICATION_DIRECTORY,BLACKHOLE_FOLDER_NAME);
@@ -53,7 +51,7 @@ namespace Bugtracker.Globals_and_Information
 
         public static string GetFittingConfigFilesPath()
         {
-            return INTERNAL_CONFIG_FOLDER_PATH;
+             return INTERNAL_CONFIG_FOLDER_PATH;
         }
 
         public static string GetFittingStartupConfigPath()
@@ -63,13 +61,8 @@ namespace Bugtracker.Globals_and_Information
 
         public static string GetFittingPluginFilesPath()
         {
-              return INTERNAL_PLUGIN_FOLDER_PATH;
+             return INTERNAL_PLUGIN_FOLDER_PATH;
         }
-
-        /// <summary>
-        /// DEFAULT_BUGTRACKER_SERVER holds the default value where the file have to be copied to
-        /// </summary>
-        public const string DEFAULT_BUGTRACKER_SERVER                   = @"\\10.74.10.100\bugTracker";
 
         /// <summary>
         /// Image file format of screenshots, jpg by default

@@ -13,7 +13,7 @@ namespace Bugtracker.Capture.Screen
 {
     /// <summary>
     /// This class handles everthing related to 
-    /// taking screenshots
+    /// screenshot capture
     /// 
     /// TODO: Test with multiple screens
     /// </summary>
@@ -34,40 +34,74 @@ namespace Bugtracker.Capture.Screen
         /// <summary>
         /// Assamble screenshot image file name
         /// 
-        /// PCName_data_time.jpg
+        /// screenshot_PCName_data_time.jpg
         /// f.e. PC01_0102021_081243.jpg
         /// for PC01 01.02.2021 08:12:43
         /// </summary>
-        private string BuildScreenShotFileName()
+        public string BuildScreenShotFileName()
+        {
+            return BuildScreenShotFileName("screenshot", Globals.SCREENSHOT_FILE_FORMAT);
+        }
+
+        /// <summary>
+        /// Assamble screenshot image file name using custom prefix
+        /// 
+        /// %prefix%_PCName_data_time.jpg
+        /// f.e. PC01_0102021_081243.jpg
+        /// for PC01 01.02.2021 08:12:43
+        /// </summary>
+        public string BuildScreenShotFileName(String prefix)
+        {
+            return BuildScreenShotFileName(prefix, Globals.SCREENSHOT_FILE_FORMAT);
+        }
+
+        /// <summary>
+        /// Assamble screenshot image file name using custom prefix and filetype
+        /// 
+        /// %prefix%_PCName_data_time.%filetype%
+        /// f.e. PC01_0102021_081243.jpg
+        /// for PC01 01.02.2021 08:12:43
+        /// </summary>
+        public string BuildScreenShotFileName(string prefix, string filetype)
         {
             // log info
-            Logger.Log("Building filename for screenshot file(s).", (LoggingSeverity)2);
+            Logger.Log("Building filename for "+prefix+" file(s).", (LoggingSeverity)2);
 
             // start with hostname
-            string filename = "screenshot_" + PCInfo.Hostname;
+            string filename = prefix + "_" + PCInfo.Hostname;
 
             // build date format
             DateTime dt = DateTime.Now; // Or whatever
             string date = dt.ToString("_dd-MM-yy_HH-mm-ss");
 
             // finished filename
-            filename += date + Globals.SCREENSHOT_FILE_FORMAT;
+            filename += date + filetype;
             Logger.Log("Finished filename: " + filename, (LoggingSeverity)2);
 
             // return filename
             return filename;
         }
 
+
+        /// <summary>
+        /// Start and Stop isnt a function that can be realized in bugtracker core
+        /// </summary>
         public void StartScreenRecording()
         { 
             //TODO: To be continued.
         }
 
+        /// <summary>
+        /// Start and Stop isnt a function that can be realized in bugtracker core
+        /// </summary>
         public void StopScreenRecording()
         {
             //TODO: To be continued.
         }
 
+        /// <summary>
+        /// This method is responsible for generating the screenshots for the current bugtrack in sequence
+        /// </summary>
         public void GenerateScreenshotInSequence()
         {
             CurrentNumberInSequence++;
@@ -75,9 +109,15 @@ namespace Bugtracker.Capture.Screen
             GenerateScreenshot(RunningConfiguration.GetInstance().BugtrackerFolderName, true);
         }
 
-        public string GenerateScreenshotFromBitmap(string bugtrackFolderName, Bitmap bitmap)
+        /// <summary>
+        /// This method is responsible for generating the screenshots for the current bugtrack from a given bitmap
+        /// </summary>
+        /// <param name="bugtrackFolderName"></param>
+        /// <param name="bitmap"></param>
+        /// <returns></returns>
+        public string GenerateScreenshotFromBitmap(string bugtrackFolderName, Bitmap bitmap, string prefix="screenshot")
         {
-            var screenShotFileName = BuildScreenShotFileName();
+            var screenShotFileName = BuildScreenShotFileName(prefix);
             bitmap.Save(bugtrackFolderName + @"\" + screenShotFileName, ImageFormat.Jpeg);
 
             Logger.Log("Screenshot generated and saved at '" + screenShotFileName + "'", (LoggingSeverity)2);

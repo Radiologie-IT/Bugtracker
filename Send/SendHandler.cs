@@ -7,6 +7,19 @@ using System.Collections.Generic;
 using System.IO;
 using Bugtracker.Ticketing;
 using Bugtracker.Globals_and_Information;
+using System.Net.Mail;
+using System.Net;
+using Bugtracker.Variables;
+using System.Drawing;
+using System.Net.Mime;
+using System.Windows.Forms;
+using System.Management.Automation;
+using Bugtracker.Logging;
+using System.Text;
+using System.Collections.ObjectModel;
+using System.Drawing.Text;
+using Microsoft.VisualBasic;
+using System.Linq;
 
 namespace Bugtracker.Send
 {
@@ -27,7 +40,26 @@ namespace Bugtracker.Send
         }
 
         /// <summary>
-        /// Returns completion status tuple ex. 1
+        /// Returns completion status tuple from SendResult list
+        /// </summary>
+        /// <param name="results">List of SendResult objects</param>
+        /// <returns>Tuple of (total count, success count)</returns>
+        public static (int, int) ReturnCompletionStatus(List<SendResult> results)
+        {
+            int size = results.Count;
+            int complete = 0;
+
+            foreach (SendResult result in results)
+            {
+                if (result.Success)
+                    complete++;
+            }
+
+            return (size, complete);
+        }
+
+        /// <summary>
+        /// Returns completion status tuple ex. 1 (legacy overload for bool list)
         /// </summary>
         /// <returns></returns>
         public static (int, int) ReturnCompletionStatus(List<bool> completionStatus)
@@ -43,7 +75,11 @@ namespace Bugtracker.Send
 
             return (size, complete);
         }
-
+        /// <summary>
+        /// Never used. Returns completion status in percent ex. 0.5
+        /// </summary>
+        /// <param name="completionsStatus"></param>
+        /// <returns></returns>
         public static float ReturnCompletionStatusPercent(List<bool> completionsStatus)
         {
             (int, int) completionsStat = ReturnCompletionStatus(completionsStatus);
@@ -52,116 +88,55 @@ namespace Bugtracker.Send
         }
 
         /// <summary>
-        /// Sends bugtracker folders either by copy or per mail
+        /// Sends bugtracker data to all configured targets.
+        /// Each target handles its own send logic (copy, mail, powershell, etc.).
         /// </summary>
-        /// <returns>The status of sending completion of all folders</returns>
-        public List<bool> Send(ProblemDescriptor problemDescriptor = null)
+        /// <param name="problemDescriptor">Optional problem descriptor with category and description</param>
+        /// <returns>List of SendResult objects containing success status, messages, and URLs</returns>
+        public List<SendResult> Send(ProblemDescriptor problemDescriptor = null)
         {
-            List<bool> completionStatus = new List<bool>();
+            List<SendResult> results = new List<SendResult>();
 
-            foreach (Target t in targets)
+            foreach (Target target in targets)
             {
-                if (t.TargetType == TargetType.folder)
-                    completionStatus.Add(SendPerCopy(t, problemDescriptor));
-                else if (t.TargetType == TargetType.mail)
-                    completionStatus.Add(SendPerMail(t));
+                try
+                {
+                    Logger.Log($"Sending to target: {target.Name} ({target.TypeIdentifier})", LoggingSeverity.Info);
+                    SendResult result = target.Send(problemDescriptor);
+
+                    if (result.Success)
+                    {
+                        Logger.Log($"Target '{target.Name}' completed successfully: {result.Message}", LoggingSeverity.Info);
+                        if (!string.IsNullOrEmpty(result.Url))
+                        {
+                            Logger.Log($"Target '{target.Name}' URL: {result.Url}", LoggingSeverity.Info);
+                        }
+                    }
+                    else
+                    {
+                        Logger.Log($"Target '{target.Name}' failed: {result.Message}", LoggingSeverity.Error);
+                    }
+
+                    results.Add(result);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"Exception sending to target '{target.Name}': {ex.Message}", LoggingSeverity.Error);
+                    results.Add(SendResult.Fail($"Exception: {ex.Message}", ex));
+                }
             }
 
-            return completionStatus;
+            return results;
         }
+
         /// <summary>
-        /// Per Default sends all folders created in this bugtracker session per mail
-        /// to default target
+        /// Create a ticket in an external ticketing system
         /// </summary>
-        /// <returns>The status of sending completion of all folders</returns>
-        public bool SendPerMail(Target t, ProblemDescriptor problemDescriptor = null)
-        {
-            //TODO Implement in next version.
-
-            return false;
-        }
-
+        /// <param name="ticketObject">Ticket creation object containing ticket details</param>
+        /// <returns>True if ticket was created successfully, false otherwise</returns>
         public bool CreateTicket(TicketCreationObject ticketObject)
         {
             return ticketObject.Create();
-        }
-
-
-
-        /// <summary>
-        /// Per Default send all folder created in this bugtracker session per copy
-        /// to default target
-        /// </summary>
-        /// <returns>The status of sending completion of all folders</returns>
-        public bool SendPerCopy(Target t, ProblemDescriptor problemDescriptor = null)
-        {
-            if ((t.Path != null || t.Path != ""))
-            {
-                bool useCustomBTFolderName = false;
-
-                //Custom Bugtracker Folder Name creation
-                if(t.CustomBugtrackerFolderName != null || t.CustomBugtrackerFolderName != "")
-                {
-                    useCustomBTFolderName = true;
-
-                    if (problemDescriptor?.ProblemCategory != null)
-                    {
-                        RunningConfiguration.GetInstance().Variables.VariableDictionary["ticket"] =
-                            (problemDescriptor.ProblemCategory.TicketAbbreviation, false);
-                    }
-
-                    //set Custom Bugtracker folder Name, uses Replace Keywords method from Variable Class
-                    t.CustomBugtrackerFolderName = RunningConfiguration.GetInstance().Variables.ReplaceKeywords(t.CustomBugtrackerFolderName);
-                }
-
-                if (RunningConfiguration.GetInstance().BugtrackerFolders.Count != 0)
-                {
-                    foreach (DirectoryInfo di in RunningConfiguration.GetInstance().BugtrackerFolders)
-                    {
-                        string bugtrackerFolderName = di.Name;
-                        //Create bugtracker folder at target path
-                        if (useCustomBTFolderName)
-                            bugtrackerFolderName = t.CustomBugtrackerFolderName;    
-
-                        Directory.CreateDirectory(t.Path + "\\" + bugtrackerFolderName);
-
-                        if(problemDescriptor?.ProblemCategory != null)
-                            CreateProblemDescriptionFile(t.Path + "\\" + bugtrackerFolderName + "\\" + problemDescriptor.ProblemCategory.Name + "_Problem_Description", problemDescriptor);
-
-                        //copy content of bugtracker folder to target path
-                        BugtrackerUtils.DirectoryCopy(di.FullName, t.Path + "\\" + bugtrackerFolderName, true);
-
-                        //create blackhole folder at target path
-                        Directory.CreateDirectory(t.Path + "\\" + bugtrackerFolderName + "\\blackhole");
-
-                        //copy content of blackhole folder to target path
-
-                        BugtrackerUtils.DirectoryCopy(Globals_and_Information.Globals.LOCAL_BLACKHOLE_FODLER_PATH, t.Path + "\\" + bugtrackerFolderName + "\\blackhole", true);
-                    }
-
-                    
-
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public void CreateProblemDescriptionFile(string path, ProblemDescriptor problemDescriptor)
-        {
-            using (StreamWriter sw = File.CreateText(path + ".txt"))
-            {
-                sw.Write(PCInfo.Summary());
-
-                sw.WriteLine("Problem Kategorie");
-                sw.WriteLine(problemDescriptor.ProblemCategory.Name);
-                sw.WriteLine("---------------------------------------------" + Environment.NewLine);
-                sw.WriteLine("Problem Beschreibung:");
-                sw.WriteLine(problemDescriptor.ProblemDescription);
-
-                System.Diagnostics.Debug.WriteLine("Created Problem Description file....");
-            }
         }
     }
 }

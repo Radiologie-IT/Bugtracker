@@ -15,7 +15,7 @@ namespace Bugtracker.Console.Commands.help
         {
             string helpMessage = "Bugtracker v2.1" + Globals.EOL_CHARACTER + Globals.EOL_CHARACTER;
 
-            System.Diagnostics.Debug.WriteLine("length:" + BugtrackConsole.commandRegestry.Count);
+            Logging.Logger.Log("Generating help message with " + BugtrackConsole.commandRegestry.Count + " registered commands", Logging.LoggingSeverity.Debug);
 
             foreach (var item in BugtrackConsole.commandRegestry)
             {

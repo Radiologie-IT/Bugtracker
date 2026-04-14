@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Bugtracker.Problem_Descriptors
+﻿namespace Bugtracker.Problem_Descriptors
 {
+    /// <summary>
+    /// Problem Descriptior Object. Contains Problem Category and Description.
+    /// </summary>
     public class ProblemDescriptor
     {
         public ProblemCategory ProblemCategory { get; set; }

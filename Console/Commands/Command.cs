@@ -9,6 +9,14 @@ namespace Bugtracker.Console.Commands
     /// <summary>
     /// Holds methods and values every command should inherit
     /// ex: GetHelp, returns string how to use given command
+    /// 
+    /// The vision is to use the Command class to create a tree of commands
+    /// 
+    /// The console could be used in the future for remote diagnostics, ex: bugtracker-agent
+    /// agent is then used to make bugtrack remotely without connection over vnc or similar
+    /// 
+    /// i wont comment all the different commands but they are a great way of exploring the basic 
+    /// functionality of the bugtracker
     /// </summary>
     class Command
     {
@@ -24,6 +32,9 @@ namespace Bugtracker.Console.Commands
         public string CommandReverse { get; set; }
         public int CommandDepth { get; set; }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public Command RootCommand
         {
             get
@@ -38,7 +49,7 @@ namespace Bugtracker.Console.Commands
                         break;
                 }
 
-                System.Diagnostics.Debug.WriteLine("Command: " + this.CommandName + "Command Root: " + rootCommand);
+                Logging.Logger.Log("Resolved root command for '" + this.CommandName + "': " + (rootCommand != null ? rootCommand.CommandName : "null"), Logging.LoggingSeverity.Debug);
                 return rootCommand;
             }
         }
@@ -75,11 +86,7 @@ namespace Bugtracker.Console.Commands
             //TODO: Fix commandreverselookup not working
             thisCommand.CommandReverse = CommandReverseLookup(thisCommand);
 
-            System.Diagnostics.Debug.WriteLine("-------COMMAND BEGIN-------");
-            System.Diagnostics.Debug.WriteLine("this command name: " + commandAtr.CommandName);
-            System.Diagnostics.Debug.WriteLine("this command Parent: " + commandAtr.ParentCommand);
-            System.Diagnostics.Debug.WriteLine("COMMAND REVERSE: " + thisCommand.CommandReverse);
-            System.Diagnostics.Debug.WriteLine("-------COMMAND End---------");
+            Logging.Logger.Log("Initialized command: Name='" + commandAtr.CommandName + "', Parent=" + (commandAtr.ParentCommand != null ? commandAtr.ParentCommand.Name : "null") + ", Reverse='" + thisCommand.CommandReverse + "'", Logging.LoggingSeverity.Debug);
 
             return thisCommand;
         }
@@ -236,7 +243,6 @@ namespace Bugtracker.Console.Commands
                 return Execute();
             return GlobalMessages.TOO_FEW_ARGUMENTS + " Use " + CommandReverse + " help, for a list of all suitable arguments" + Environment.NewLine;
         }
-
 
         public virtual string Execute()
         {

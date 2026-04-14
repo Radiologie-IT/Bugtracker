@@ -5,15 +5,22 @@ using Bugtracker.Globals_and_Information;
 
 namespace Bugtracker.Logging
 {
+    /// <summary>
+    /// All availabe logging severities
+    /// </summary>
     public enum LoggingSeverity
     {
         //TODO: Remove Null
         Null = 99,
+        Debug = 4,
         Info = 3,
         Warning = 2,
         Error = 1
     }
 
+    /// <summary>
+    /// Event Args for LoggedNewLine Event
+    /// </summary>
     public class LoggedNewLineEventArgs : EventArgs
     {
         public LoggingSeverity LoggingSeverity { get; set; }
@@ -28,9 +35,18 @@ namespace Bugtracker.Logging
         }
     }
 
+    /// <summary>
+    /// Logger class. Used to log messages to a file.
+    /// </summary>
     public static class Logger
     {
         public static event EventHandler LoggedNewLine;
+
+        /// <summary>
+        /// Minimum logging severity level. Only messages at or below this level will be logged.
+        /// Default is Info (3). Lower numbers = more severe/important.
+        /// </summary>
+        public static LoggingSeverity MinimumSeverity { get; set; } = LoggingSeverity.Info;
 
         /// <summary>
         /// Check if log file exists
@@ -38,17 +54,54 @@ namespace Bugtracker.Logging
         /// </summary>
         public static void InitializeLogging()
         {
-
-            // if file doesn't exist create file 
-            if (!File.Exists(Globals.LOG_FILE_PATH))
+            if(!Directory.Exists(Globals.APPLICATION_DIRECTORY))
             {
-                // create application directory 
                 Directory.CreateDirectory(Globals.APPLICATION_DIRECTORY);
-                File.Create(Globals.LOG_FILE_PATH).Dispose();
             }
 
+            if (!Directory.Exists(Globals.LOG_DIRECTORY))
+            {
+                Directory.CreateDirectory(Globals.LOG_DIRECTORY);
+            }
+
+            if (File.Exists(Globals.LOG_FILE_PATH))
+            {
+                RotateLogs();
+                //File.Delete(Globals.LOG_FILE_PATH);
+            }
+            
+            File.Create(Globals.LOG_FILE_PATH).Dispose();
+
             // check if config file exists
-            Logger.CheckConfigFile();
+            //Logger.CheckConfigFile();
+        }
+
+        public static void RotateLogs()
+        {
+            //deleted oldest log
+            if(File.Exists(Globals.LOG_FILE_PATH + "." + (Globals.LOG_ROTATION_COUNT - 1)))
+            {
+                File.Delete(Globals.LOG_FILE_PATH + "." + (Globals.LOG_ROTATION_COUNT - 1));
+            }
+
+            //increase number of numbered log files by 1
+            for (int i = (Globals.LOG_ROTATION_COUNT - 2); i>=0; i--)
+            {
+                string filename_old = Globals.LOG_FILE_PATH + "." + i;
+                string filename_new = Globals.LOG_FILE_PATH + "." + (i + 1);
+
+                if (File.Exists(filename_old))
+                {
+                    File.Move(filename_old, filename_new);
+                }
+            }
+
+            //add number 0 to previous log file name
+            if (File.Exists(Globals.LOG_FILE_PATH))
+            {
+                File.Move(Globals.LOG_FILE_PATH, Globals.LOG_FILE_PATH + ".0");
+            }
+
         }
 
 
@@ -97,7 +150,12 @@ namespace Bugtracker.Logging
         /// <param name="priority"></param>
         public static void Log(string msg, LoggingSeverity loggingSeverity)
         {
-
+            // Filter out messages that are less important than the minimum severity
+            // Lower enum values = more severe (Error=1, Warning=2, Info=3, Debug=4)
+            if ((int)loggingSeverity > (int)MinimumSeverity)
+            {
+                return;
+            }
 
             // get local date and time
             DateTime localDate = DateTime.Now;
@@ -117,16 +175,25 @@ namespace Bugtracker.Logging
                 case LoggingSeverity.Error:
                     fmsg = "[ERROR][" + dateAndTime + "]: " + msg;
                     AppendToFile(fmsg);
+                    System.Diagnostics.Debug.WriteLine(fmsg);
                     break;
 
                 case LoggingSeverity.Warning:
                     fmsg = "[WARNING][" + dateAndTime + "]: " + msg;
                     AppendToFile(fmsg);
+                    System.Diagnostics.Debug.WriteLine(fmsg);
                     break;
 
                 case LoggingSeverity.Info:
                     fmsg = "[INFO][" + dateAndTime + "]: " + msg;
                     AppendToFile(fmsg);
+                    System.Diagnostics.Debug.WriteLine(fmsg);
+                    break;
+
+                case LoggingSeverity.Debug:
+                    fmsg = "[DEBUG][" + dateAndTime + "]: " + msg;
+                    AppendToFile(fmsg);
+                    System.Diagnostics.Debug.WriteLine(fmsg);
                     break;
             }
 
@@ -150,7 +217,8 @@ namespace Bugtracker.Logging
                 }
                 catch
                 {
-                    System.Diagnostics.Debug.WriteLine("Cannot log, File ist being used by another process");
+                    // Cannot recursively call Logger.Log here, so use Debug.WriteLine as fallback
+                    System.Diagnostics.Debug.WriteLine("Cannot write to log file - file is being used by another process");
                 }
             }
         }

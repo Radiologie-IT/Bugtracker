@@ -1,8 +1,24 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <configuration>
-  <!-- 
+	<!--
 	STARTUP: Here start parameters can be set
+	loggingSeverity: 1=Error, 2=Warning, 3=Info, 4=Debug (default: 3)
+	fileCheckTimeoutMs: Timeout in milliseconds for directory existence checks to prevent hanging on unreachable network shares (default: 1000)
+	Example with network server and shared config folder:
+	<startup startGUI="true" firstStartup="false" mainserver="192.168.1.100" loadConfigsFrom="\\192.168.1.100\bugtracker\configs" fileCheckTimeoutMs="1000">
+	</startup>
 	-->
-  <startup startGUI="true" firstStartup="true" mainserver="10.74.10.100" loadConfigsFrom="\\10.74.10.100\bugTracker\bugtrackerV2Current">
-  </startup>
+	<startup
+		startGUI="true"
+		firstStartup="false"
+		mainserver="your-server-ip"
+		configWebserverUrl="http://your-bugtracker-server"
+		loadConfigsFrom="path_to_folder"
+		loggingSeverity="3"
+		fileCheckTimeoutMs="1000">
+  	</startup>
+	<!--
+	<startup startGUI="true" firstStartup="false" mainserver="localhost" loadConfigsFrom="C:\Bugtracker\configs" loggingSeverity="3" fileCheckTimeoutMs="1000">
+	</startup>-->
+
 </configuration>
