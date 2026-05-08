@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using Bugtracker.Configuration;
 using Bugtracker.Globals_and_Information;
 
@@ -41,6 +42,9 @@ namespace Bugtracker.Logging
     public static class Logger
     {
         public static event EventHandler LoggedNewLine;
+
+        private static readonly string ProgramVersion =
+            Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
 
         /// <summary>
         /// Minimum logging severity level. Only messages at or below this level will be logged.
@@ -173,25 +177,25 @@ namespace Bugtracker.Logging
             switch (loggingSeverity)
             {
                 case LoggingSeverity.Error:
-                    fmsg = "[ERROR][" + dateAndTime + "]: " + msg;
+                    fmsg = "[ERROR][" + ProgramVersion + "][" + dateAndTime + "]: " + msg;
                     AppendToFile(fmsg);
                     System.Diagnostics.Debug.WriteLine(fmsg);
                     break;
 
                 case LoggingSeverity.Warning:
-                    fmsg = "[WARNING][" + dateAndTime + "]: " + msg;
+                    fmsg = "[WARNING][" + ProgramVersion + "][" + dateAndTime + "]: " + msg;
                     AppendToFile(fmsg);
                     System.Diagnostics.Debug.WriteLine(fmsg);
                     break;
 
                 case LoggingSeverity.Info:
-                    fmsg = "[INFO][" + dateAndTime + "]: " + msg;
+                    fmsg = "[INFO][" + ProgramVersion + "][" + dateAndTime + "]: " + msg;
                     AppendToFile(fmsg);
                     System.Diagnostics.Debug.WriteLine(fmsg);
                     break;
 
                 case LoggingSeverity.Debug:
-                    fmsg = "[DEBUG][" + dateAndTime + "]: " + msg;
+                    fmsg = "[DEBUG][" + ProgramVersion + "][" + dateAndTime + "]: " + msg;
                     AppendToFile(fmsg);
                     System.Diagnostics.Debug.WriteLine(fmsg);
                     break;
